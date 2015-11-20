@@ -1,0 +1,18 @@
+from setuptools import setup, Extension
+import numpy as np
+
+atmcmodule = Extension(
+    'atmc',
+    include_dirs=[np.get_include(), '${CMAKE_CURRENT_SOURCE_DIR}/mcopt', '/usr/local/include', '/usr/include'],
+    libraries=['mcopt', 'c++', 'armadillo', 'gomp'],
+    library_dirs=['${CMAKE_CURRENT_BINARY_DIR}', '/usr/local/lib'],
+    sources=['${CMAKE_CURRENT_SOURCE_DIR}/atmc/atmcmodule.cpp'],
+    language='c++',
+    extra_compile_args=['-std=c++11', '-fopenmp'],
+    )
+
+setup(name='tracking',
+      version='${PACKAGE_VERSION}',
+      description='Particle tracking and MC optimizer module',
+      ext_modules=[atmcmodule],
+      )
