@@ -243,8 +243,8 @@ extern "C" {
             arma::mat simMat = convertPyArrayToArma(simArr, -1, -1);
             arma::mat expMat = convertPyArrayToArma(expArr, -1, -1);
 
-            printf("SimMat has shape (%lld, %lld)", simMat.n_rows, simMat.n_cols);
-            printf("ExpMat has shape (%lld, %lld)", expMat.n_rows, expMat.n_cols);
+            // printf("SimMat has shape (%lld, %lld)", simMat.n_rows, simMat.n_cols);
+            // printf("ExpMat has shape (%lld, %lld)", expMat.n_rows, expMat.n_cols);
 
             arma::mat devs = findDeviations(simMat, expMat);
 
