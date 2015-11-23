@@ -58,7 +58,7 @@ static const bool checkPyArrayDimensions(PyArrayObject* pyarr, const npy_intp di
     const auto dims = getPyArrayDimensions(pyarr);
     assert(dims.size() <= 2 and dims.size() > 0);
     if (dims.size() == 1) {
-        return (dims[0] == dim0) and (dim1 == -1);
+        return (dims[0] == dim0) and (dim1 == 1);
     }
     else {
         return (dims[0] == dim0 or dim0 == -1) and (dims[1] == dim1 or dim1 == -1);
