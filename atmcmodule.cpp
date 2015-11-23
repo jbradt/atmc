@@ -39,25 +39,53 @@ static std::vector<double> convertPyArrayToVector(PyArrayObject* pyarr)
     return std::vector<double>(dataPtr, dataPtr+dims[0]);
 }
 
-static arma::mat convertPyArrayToArma(PyArrayObject* pyarr, int nrows, int ncols)
+static const std::vector<npy_intp> getPyArrayDimensions(PyArrayObject* pyarr)
 {
-    assert((nrows > 1) or (ncols > 1));
-    if (!PyArray_IS_C_CONTIGUOUS(pyarr)) throw BadArrayLayout();
-
     npy_intp ndims = PyArray_NDIM(pyarr);
     npy_intp* dims = PyArray_SHAPE(pyarr);
-    if (ndims == 1) {
-        if ((ncols > 1) or (nrows != dims[0])) throw WrongDimensions();
+    std::vector<npy_intp> result;
+    for (int i = 0; i < ndims; i++) {
+        result.push_back(dims[i]);
     }
-    else if (ndims == 2) {
-        if ((nrows != dims[0] and nrows != -1) or (ncols != dims[1] and ncols != -1)) throw WrongDimensions();
+    return result;
+}
+
+/* Checks the dimensions of the given array. Pass -1 for either dimension to say you don't
+ * care what the size is in that dimension. Pass dimensions (X, 1) for a vector.
+ */
+static const bool checkPyArrayDimensions(PyArrayObject* pyarr, const npy_intp dim0, const npy_intp dim1)
+{
+    const auto dims = getPyArrayDimensions(pyarr);
+    assert(dims.size() <= 2 and dims.size() > 0);
+    if (dims.size() == 1) {
+        return (dims[0] == dim0) and (dim1 == -1);
     }
-    else throw WrongDimensions();
+    else {
+        return (dims[0] == dim0 or dim0 == -1) and (dims[1] == dim1 or dim1 == -1);
+    }
+}
 
-    double* dataPtr = static_cast<double*>(PyArray_DATA(pyarr));
+static arma::mat convertPyArrayToArma(PyArrayObject* pyarr, int nrows, int ncols)
+{
+    if (!checkPyArrayDimensions(pyarr, nrows, ncols)) throw WrongDimensions();
+    const auto dims = getPyArrayDimensions(pyarr);
+    if (dims.size() == 1) {
+        double* dataPtr = static_cast<double*>(PyArray_DATA(pyarr));
+        return arma::vec(dataPtr, dims[0], true);
+    }
+    else {
+        // Convert the array to a Fortran-contiguous (col-major) array of doubles, as required by Armadillo
+        PyArray_Descr* reqDescr = PyArray_DescrFromType(NPY_DOUBLE);
+        if (reqDescr == NULL) throw std::bad_alloc();
+        PyArrayObject* cleanArr = (PyArrayObject*)PyArray_FromArray(pyarr, reqDescr, NPY_ARRAY_FARRAY);
+        if (cleanArr == NULL) throw std::bad_alloc();
+        reqDescr = NULL;  // The new reference from DescrFromType was stolen by FromArray
 
-    if (ndims == 1) return arma::vec(dataPtr, dims[0]);
-    else return arma::mat(dataPtr, dims[0], dims[1]);
+        double* dataPtr = static_cast<double*>(PyArray_DATA(cleanArr));
+        arma::mat result (dataPtr, dims[0], dims[1], true);  // this copies the data from cleanArr
+        Py_DECREF(cleanArr);
+        return result;
+    }
 }
 
 static PyObject* convertArmaToPyArray(arma::mat& matrix)

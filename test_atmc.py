@@ -26,5 +26,17 @@ class TestFindDeviations(unittest.TestCase):
                              np.arange(100)))
 
         devs = atmc.find_deviations(A, B)
-        expect = np.column_stack((np.zeros(100), np.full(100, 100)))
+        expect = np.column_stack((np.zeros(100), -np.full(100, 100)))
+        nptest.assert_allclose(devs, expect, atol=1e-8)
+
+    def test_vs_zero(self):
+        A = np.column_stack((np.zeros(100),
+                             np.zeros(100),
+                             np.arange(100)))
+        B = np.column_stack((np.arange(0, 100),
+                             np.arange(200, 300),
+                             np.arange(100)))
+
+        devs = atmc.find_deviations(A, B)
+        expect = -B[:, :2]
         nptest.assert_allclose(devs, expect, atol=1e-8)
