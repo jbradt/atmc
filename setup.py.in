@@ -4,11 +4,11 @@ import numpy as np
 atmcmodule = Extension(
     'atmc',
     include_dirs=[np.get_include(), '${CMAKE_CURRENT_SOURCE_DIR}/mcopt', '/usr/local/include', '/usr/include'],
-    libraries=['mcopt', 'c++', 'armadillo', 'gomp'],
+    libraries=['${ATMC_LIBS}'],
     library_dirs=['${CMAKE_CURRENT_BINARY_DIR}', '/usr/local/lib'],
     sources=['${CMAKE_CURRENT_SOURCE_DIR}/atmc/atmcmodule.cpp'],
     language='c++',
-    extra_compile_args=['-std=c++11', '-fopenmp'],
+    extra_compile_args=['${ATMC_EXTRA_ARGS}'],
     )
 
 setup(name='tracking',
