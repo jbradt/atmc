@@ -8,6 +8,7 @@ extern "C" {
 #include <exception>
 #include <cassert>
 #include <stdio.h>
+#include <string>
 
 class WrongDimensions : public std::exception
 {
@@ -109,6 +110,11 @@ static PyObject* convertArmaToPyArray(arma::mat& matrix)
 }
 
 extern "C" {
+    const std::string atmc_track_particle_docstring =
+        "Simulate the trajectory of a particle. \n"
+        "Parameters\n"
+        "----------\n"
+        "d";
     static PyObject* atmc_track_particle(PyObject* self, PyObject* args)
     {
         double x0, y0, z0, enu0, azi0, pol0;
@@ -295,7 +301,7 @@ extern "C" {
 
     static PyMethodDef atmcMethods[] =
     {
-        {"track_particle", atmc_track_particle, METH_VARARGS, "Track a particle."},
+        {"track_particle", atmc_track_particle, METH_VARARGS, atmc_track_particle_docstring.c_str()},
         {"MCminimize", atmc_MCminimize, METH_VARARGS, "Perform chi^2 minimization."},
         {"find_deviations", atmc_find_deviations, METH_VARARGS, "Find deviations between tracks."},
         {NULL, NULL, 0, NULL}

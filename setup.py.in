@@ -9,6 +9,7 @@ atmcmodule = Extension(
     sources=['${CMAKE_CURRENT_SOURCE_DIR}/atmc/atmcmodule.cpp'],
     language='c++',
     extra_compile_args=['${ATMC_EXTRA_ARGS}'],
+    extra_link_args=['${ATMC_EXTRA_ARGS}'],
     )
 
 setup(name='tracking',
