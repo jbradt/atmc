@@ -111,10 +111,32 @@ static PyObject* convertArmaToPyArray(arma::mat& matrix)
 
 extern "C" {
     const std::string atmc_track_particle_docstring =
-        "Simulate the trajectory of a particle. \n"
+        "Simulate the trajectory of a particle.\n"
+        "\n"
         "Parameters\n"
         "----------\n"
-        "d";
+        "x0, y0, z0, enu0, azi0, pol0 : float\n"
+        "    The initial position (m), energy per nucleon (MeV/u), and azimuthal and polar angles (rad).\n"
+        "massNum, chargeNum : int\n"
+        "    The mass and charge numbers of the projectile.\n"
+        "eloss : ndarray\n"
+        "    The energy loss for the particle, in MeV/m, as a function of projectile energy.\n"
+        "    This should be indexed in 1-keV steps.\n"
+        "efield, bfield : array-like\n"
+        "    The electric and magnetic fields, in SI units.\n"
+        "\n"
+        "Returns\n"
+        "-------\n"
+        "ndarray\n"
+        "    The simulated track. The columns are x, y, z, time, energy/nuclon, azimuthal angle, polar angle.\n"
+        "    The positions are in meters, the time is in seconds, and the energy is in MeV/u.\n"
+        "\n"
+        "Raises\n"
+        "------\n"
+        "ValueError\n"
+        "    If the dimensions of an input array were invalid.\n"
+        "RuntimeError\n"
+        "    If tracking fails for some reason.\n";
     static PyObject* atmc_track_particle(PyObject* self, PyObject* args)
     {
         double x0, y0, z0, enu0, azi0, pol0;
@@ -176,6 +198,50 @@ extern "C" {
         return result;
     }
 
+    const std::string atmc_MCminimize_docstring =
+        "Perform chi^2 minimization for the track.\n"
+        "\n"
+        "Parameters\n"
+        "----------\n"
+        "ctr0 : ndarray\n"
+        "    The initial guess for the track's parameters. These are (x0, y0, z0, enu0, azi0, pol0, bmag0).\n"
+        "sig0 : ndarray\n"
+        "    The initial width of the parameter space in each dimension. The distribution will be centered on `ctr0` with a\n"
+        "    width of `sig0 / 2` in each direction.\n"
+        "trueValues : ndarray\n"
+        "    The experimental data points, as (x, y, z) triples.\n"
+        "massNum, chargeNum : int\n"
+        "    The mass and charge number of the projectile.\n"
+        "eloss : ndarray\n"
+        "    The energy loss for the particle, in MeV/m, as a function of projectile energy.\n"
+        "    This should be indexed in 1-keV steps.\n"
+        "efield : ndarray\n"
+        "    The electric field vector.\n"
+        "numIters : int\n"
+        "    The number of iterations to perform before stopping. Each iteration draws `numPts` samples and picks the best one.\n"
+        "numPts : int\n"
+        "    The number of samples to draw in each iteration. The tracking function will be evaluated `numPts * numIters` times.\n"
+        "redFactor : float\n"
+        "    The factor to multiply the width of the parameter space by on each iteration. Should be <= 1.\n"
+        "\n"
+        "Returns\n"
+        "-------\n"
+        "ctr : ndarray\n"
+        "    The fitted track parameters.\n"
+        "minChis : ndarray\n"
+        "    The minimum chi^2 value at the end of each iteration.\n"
+        "allParams : ndarray\n"
+        "    The parameters from all generated tracks. There will be `numIters * numPts` rows.\n"
+        "goodParamIdx : ndarray\n"
+        "    The row numbers in `allParams` corresponding to the best points from each iteration, i.e. the ones whose\n"
+        "    chi^2 values are in `minChis`.\n"
+        "\n"
+        "Raises\n"
+        "------\n"
+        "ValueError\n"
+        "    If a provided array has invalid dimensions.\n"
+        "RuntimeError\n"
+        "    If tracking fails for some reason.\n";
     static PyObject* atmc_MCminimize(PyObject* self, PyObject* args)
     {
         PyArrayObject* ctr0Arr = NULL;
@@ -263,6 +329,20 @@ extern "C" {
         return result;
     }
 
+    const std::string atmc_find_deviations_docstring =
+        "Find the deviations. These can be summed to find chi^2.\n"
+        "\n"
+        "Parameters\n"
+        "----------\n"
+        "simArr : ndarray\n"
+        "    The simulated track.\n"
+        "expArr : ndarray\n"
+        "    The experimental data.\n"
+        "\n"
+        "Returns\n"
+        "-------\n"
+        "devArr : ndarray\n"
+        "    The array of differences (or deviations).\n";
     static PyObject* atmc_find_deviations(PyObject* self, PyObject* args)
     {
         PyArrayObject* simArr = NULL;
@@ -298,12 +378,11 @@ extern "C" {
         return devArr;
     }
 
-
     static PyMethodDef atmcMethods[] =
     {
         {"track_particle", atmc_track_particle, METH_VARARGS, atmc_track_particle_docstring.c_str()},
-        {"MCminimize", atmc_MCminimize, METH_VARARGS, "Perform chi^2 minimization."},
-        {"find_deviations", atmc_find_deviations, METH_VARARGS, "Find deviations between tracks."},
+        {"MCminimize", atmc_MCminimize, METH_VARARGS, atmc_MCminimize_docstring.c_str()},
+        {"find_deviations", atmc_find_deviations, METH_VARARGS, atmc_find_deviations_docstring.c_str()},
         {NULL, NULL, 0, NULL}
     };
 
