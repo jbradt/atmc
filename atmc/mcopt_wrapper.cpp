@@ -110,7 +110,7 @@ static PyObject* convertArmaToPyArray(arma::mat& matrix)
 }
 
 extern "C" {
-    const std::string atmc_track_particle_docstring =
+    const char* mcopt_wrapper_track_particle_docstring =
         "Simulate the trajectory of a particle.\n"
         "\n"
         "Parameters\n"
@@ -128,7 +128,7 @@ extern "C" {
         "Returns\n"
         "-------\n"
         "ndarray\n"
-        "    The simulated track. The columns are x, y, z, time, energy/nuclon, azimuthal angle, polar angle.\n"
+        "    The simulated track. The columns are x, y, z, time, energy/nucleon, azimuthal angle, polar angle.\n"
         "    The positions are in meters, the time is in seconds, and the energy is in MeV/u.\n"
         "\n"
         "Raises\n"
@@ -137,7 +137,7 @@ extern "C" {
         "    If the dimensions of an input array were invalid.\n"
         "RuntimeError\n"
         "    If tracking fails for some reason.\n";
-    static PyObject* atmc_track_particle(PyObject* self, PyObject* args)
+    static PyObject* mcopt_wrapper_track_particle(PyObject* self, PyObject* args)
     {
         double x0, y0, z0, enu0, azi0, pol0;
         int massNum, chargeNum;
@@ -198,7 +198,7 @@ extern "C" {
         return result;
     }
 
-    const std::string atmc_MCminimize_docstring =
+    const char* mcopt_wrapper_MCminimize_docstring =
         "Perform chi^2 minimization for the track.\n"
         "\n"
         "Parameters\n"
@@ -242,7 +242,7 @@ extern "C" {
         "    If a provided array has invalid dimensions.\n"
         "RuntimeError\n"
         "    If tracking fails for some reason.\n";
-    static PyObject* atmc_MCminimize(PyObject* self, PyObject* args)
+    static PyObject* mcopt_wrapper_MCminimize(PyObject* self, PyObject* args)
     {
         PyArrayObject* ctr0Arr = NULL;
         PyArrayObject* sig0Arr = NULL;
@@ -329,7 +329,7 @@ extern "C" {
         return result;
     }
 
-    const std::string atmc_find_deviations_docstring =
+    const char* mcopt_wrapper_find_deviations_docstring =
         "Find the deviations. These can be summed to find chi^2.\n"
         "\n"
         "Parameters\n"
@@ -343,7 +343,7 @@ extern "C" {
         "-------\n"
         "devArr : ndarray\n"
         "    The array of differences (or deviations).\n";
-    static PyObject* atmc_find_deviations(PyObject* self, PyObject* args)
+    static PyObject* mcopt_wrapper_find_deviations(PyObject* self, PyObject* args)
     {
         PyArrayObject* simArr = NULL;
         PyArrayObject* expArr = NULL;
@@ -378,27 +378,27 @@ extern "C" {
         return devArr;
     }
 
-    static PyMethodDef atmcMethods[] =
+    static PyMethodDef mcopt_wrapper_methods[] =
     {
-        {"track_particle", atmc_track_particle, METH_VARARGS, atmc_track_particle_docstring.c_str()},
-        {"MCminimize", atmc_MCminimize, METH_VARARGS, atmc_MCminimize_docstring.c_str()},
-        {"find_deviations", atmc_find_deviations, METH_VARARGS, atmc_find_deviations_docstring.c_str()},
+        {"track_particle", mcopt_wrapper_track_particle, METH_VARARGS, mcopt_wrapper_track_particle_docstring},
+        {"MCminimize", mcopt_wrapper_MCminimize, METH_VARARGS, mcopt_wrapper_MCminimize_docstring},
+        {"find_deviations", mcopt_wrapper_find_deviations, METH_VARARGS, mcopt_wrapper_find_deviations_docstring},
         {NULL, NULL, 0, NULL}
     };
 
-    static struct PyModuleDef atmcmodule = {
+    static struct PyModuleDef mcopt_wrapper_module = {
        PyModuleDef_HEAD_INIT,
-       "atmc",   /* name of module */
+       "mcopt_wrapper",   /* name of module */
        NULL, /* module documentation, may be NULL */
        -1,       /* size of per-interpreter state of the module,
                     or -1 if the module keeps state in global variables. */
-       atmcMethods
+       mcopt_wrapper_methods
     };
 
     PyMODINIT_FUNC
-    PyInit_atmc(void)
+    PyInit_mcopt_wrapper(void)
     {
         import_array();
-        return PyModule_Create(&atmcmodule);
+        return PyModule_Create(&mcopt_wrapper_module);
     }
 }
