@@ -28,4 +28,4 @@ add_custom_command(OUTPUT ${OUTPUT}
 add_custom_target(atmc ALL DEPENDS ${OUTPUT})
 add_dependencies(atmc mcopt)
 
-install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install)")
+install(CODE "execute_process(COMMAND ${PYTHON} ${SETUP_PY} install WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
