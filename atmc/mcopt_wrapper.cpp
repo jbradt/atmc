@@ -140,7 +140,7 @@ extern "C" {
     static PyObject* mcopt_wrapper_track_particle(PyObject* self, PyObject* args)
     {
         double x0, y0, z0, enu0, azi0, pol0;
-        int massNum, chargeNum;
+        unsigned int massNum, chargeNum;
         double efield[3];
         double bfield[3];
         PyArrayObject* eloss_array = NULL;
@@ -159,16 +159,11 @@ extern "C" {
             return NULL;
         }
 
-        Conditions cond;
-        cond.massNum = massNum;
-        cond.chargeNum = chargeNum;
-        cond.eloss = eloss;
-        cond.efield = arma::vec (efield, 3);
-        cond.bfield = arma::vec (bfield, 3);
+        MCminimizer minimizer {massNum, chargeNum, eloss, arma::vec(efield, 3), arma::vec(bfield, 3)};
 
         Track tr;
         try {
-            tr = trackParticle(x0, y0, z0, enu0, azi0, pol0, cond);
+            tr = minimizer.trackParticle(x0, y0, z0, enu0, azi0, pol0);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_RuntimeError, err.what());
@@ -277,20 +272,15 @@ extern "C" {
             return NULL;
         }
 
-        Conditions cond;
-        cond.massNum = massNum;
-        cond.chargeNum = chargeNum;
-        cond.eloss = eloss;
-        cond.efield = efield;
-        cond.bfield = arma::zeros(3);
+        MCminimizer minimizer {massNum, chargeNum, eloss, efield, arma::zeros<arma::vec>(3)};
 
         arma::vec ctr;
         arma::mat allParams;
         arma::vec minChis;
         arma::vec goodParamIdx;
         try {
-            std::tie(ctr, allParams, minChis, goodParamIdx) = MCminimize(ctr0, sig0, trueValues, cond,
-                                                                         numIters, numPts, redFactor);
+            std::tie(ctr, allParams, minChis, goodParamIdx) =
+                minimizer.minimize(ctr0, sig0, trueValues, numIters, numPts, redFactor);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_RuntimeError, err.what());
@@ -360,7 +350,7 @@ extern "C" {
             // printf("SimMat has shape (%lld, %lld)", simMat.n_rows, simMat.n_cols);
             // printf("ExpMat has shape (%lld, %lld)", expMat.n_rows, expMat.n_cols);
 
-            arma::mat devs = findDeviations(simMat, expMat);
+            arma::mat devs = MCminimizer::findDeviations(simMat, expMat);
 
             devArr = convertArmaToPyArray(devs);
         }

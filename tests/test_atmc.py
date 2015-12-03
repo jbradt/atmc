@@ -13,7 +13,7 @@ class TestFindDeviations(unittest.TestCase):
                              np.arange(100)))
         B = A.copy()
 
-        devs = atmc.find_deviations(A, B)
+        devs = atmc.mcopt_wrapper.find_deviations(A, B)
         expect = np.zeros((100, 2), dtype='float64')
         nptest.assert_allclose(devs, expect, atol=1e-6)
 
@@ -25,7 +25,7 @@ class TestFindDeviations(unittest.TestCase):
                              np.arange(100) + 100,
                              np.arange(100)))
 
-        devs = atmc.find_deviations(A, B)
+        devs = atmc.mcopt_wrapper.find_deviations(A, B)
         expect = np.column_stack((np.zeros(100), -np.full(100, 100)))
         nptest.assert_allclose(devs, expect, atol=1e-8)
 
@@ -37,6 +37,6 @@ class TestFindDeviations(unittest.TestCase):
                              np.arange(200, 300),
                              np.arange(100)))
 
-        devs = atmc.find_deviations(A, B)
+        devs = atmc.mcopt_wrapper.find_deviations(A, B)
         expect = -B[:, :2]
         nptest.assert_allclose(devs, expect, atol=1e-8)
