@@ -13,7 +13,7 @@ mcoptmodule = Extension(
     )
 
 setup(name='atmc',
-      version='${PACKAGE_VERSION}',
+      version='${PROJECT_VERSION}',
       description='Particle tracking and MC optimizer module',
       package_dir={'': '${CMAKE_CURRENT_SOURCE_DIR}'},
       packages=['atmc'],
