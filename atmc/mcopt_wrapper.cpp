@@ -89,7 +89,7 @@ static arma::mat convertPyArrayToArma(PyArrayObject* pyarr, int nrows, int ncols
     }
 }
 
-static PyObject* convertArmaToPyArray(arma::mat& matrix)
+static PyObject* convertArmaToPyArray(const arma::mat& matrix)
 {
     npy_intp ndim = matrix.is_colvec() ? 1 : 2;
     npy_intp nRows = static_cast<npy_intp>(matrix.n_rows);  // NOTE: This narrows the integer
@@ -169,25 +169,14 @@ extern "C" {
             PyErr_SetString(PyExc_RuntimeError, err.what());
             return NULL;
         }
-        const npy_intp nItems = static_cast<npy_intp>(tr.x.size());
-        npy_intp trDims[2] = {nItems, 7};
 
-        // Create a NumPy array:
-
-        PyObject* result = PyArray_SimpleNew(2, trDims, NPY_DOUBLE);
-        if (result == NULL) {
-            return NULL;
+        PyObject* result = NULL;
+        try {
+            result = convertArmaToPyArray(tr.getMatrix());
         }
-        double* resData = static_cast<double*>(PyArray_DATA((PyArrayObject*)result));
-
-        for (size_t i=0; i < trDims[0]; i++) {
-            resData[(i*trDims[1])]   = tr.x[i];
-            resData[(i*trDims[1])+1] = tr.y[i];
-            resData[(i*trDims[1])+2] = tr.z[i];
-            resData[(i*trDims[1])+3] = tr.time[i];
-            resData[(i*trDims[1])+4] = tr.enu[i];
-            resData[(i*trDims[1])+5] = tr.azi[i];
-            resData[(i*trDims[1])+6] = tr.pol[i];
+        catch (const std::bad_alloc&){
+            PyErr_NoMemory();
+            return NULL;
         }
 
         return result;
