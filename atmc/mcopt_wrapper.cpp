@@ -54,7 +54,7 @@ static const std::vector<npy_intp> getPyArrayDimensions(PyArrayObject* pyarr)
 /* Checks the dimensions of the given array. Pass -1 for either dimension to say you don't
  * care what the size is in that dimension. Pass dimensions (X, 1) for a vector.
  */
-static const bool checkPyArrayDimensions(PyArrayObject* pyarr, const npy_intp dim0, const npy_intp dim1)
+static bool checkPyArrayDimensions(PyArrayObject* pyarr, const npy_intp dim0, const npy_intp dim1)
 {
     const auto dims = getPyArrayDimensions(pyarr);
     assert(dims.size() <= 2 and dims.size() > 0);
