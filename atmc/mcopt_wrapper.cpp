@@ -159,11 +159,11 @@ extern "C" {
             return NULL;
         }
 
-        MCminimizer minimizer {massNum, chargeNum, eloss, arma::vec(efield, 3), arma::vec(bfield, 3)};
+        mcopt::Tracker tracker {massNum, chargeNum, eloss, arma::vec(efield, 3), arma::vec(bfield, 3)};
 
-        Track tr;
+        mcopt::Track tr;
         try {
-            tr = minimizer.trackParticle(x0, y0, z0, enu0, azi0, pol0);
+            tr = tracker.trackParticle(x0, y0, z0, enu0, azi0, pol0);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_RuntimeError, err.what());
@@ -261,7 +261,7 @@ extern "C" {
             return NULL;
         }
 
-        MCminimizer minimizer {massNum, chargeNum, eloss, efield, arma::zeros<arma::vec>(3)};
+        mcopt::MCminimizer minimizer {massNum, chargeNum, eloss, efield, arma::zeros<arma::vec>(3)};
 
         arma::vec ctr;
         arma::mat allParams;
@@ -339,7 +339,7 @@ extern "C" {
             // printf("SimMat has shape (%lld, %lld)", simMat.n_rows, simMat.n_cols);
             // printf("ExpMat has shape (%lld, %lld)", expMat.n_rows, expMat.n_cols);
 
-            arma::mat devs = MCminimizer::findDeviations(simMat, expMat);
+            arma::mat devs = mcopt::MCminimizer::findDeviations(simMat, expMat);
 
             devArr = convertArmaToPyArray(devs);
         }
