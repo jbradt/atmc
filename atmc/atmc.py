@@ -13,6 +13,8 @@ class ATMCTracker(object):
         The mass and charge number of the tracked particle.
     gas : pytpc gas class
         The detector gas.
+    ioniz : float
+        The mean ionization potential of the gas, in eV.
     efield, bfield : array-like
         The electric and magnetic fields in SI units.
     max_en : int, optional
@@ -20,10 +22,11 @@ class ATMCTracker(object):
         table for the tracker.
     """
 
-    def __init__(self, mass_num, charge_num, gas, efield, bfield, max_en=100):
+    def __init__(self, mass_num, charge_num, gas, ioniz, efield, bfield, max_en=100):
         self.mass_num = mass_num
         self.charge_num = charge_num
         self.gas = gas
+        self.ioniz = ioniz
 
         ens = np.arange(0, max_en*1000, dtype='int')
         self.eloss = self.gas.energy_loss(ens / 1000, mass_num, charge_num)
@@ -105,4 +108,4 @@ class ATMCTracker(object):
         sigma = np.asarray(sigma)
         true_values = np.asarray(true_values)
         return mcopt.MCminimize(ctr0, sigma, true_values, self.mass_num, self.charge_num,
-                                self.eloss, self.efield, num_iters, num_pts, red_factor)
+                                self.eloss, self.ioniz, self.efield, num_iters, num_pts, red_factor)

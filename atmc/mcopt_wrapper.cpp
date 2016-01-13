@@ -199,6 +199,8 @@ extern "C" {
         "eloss : ndarray\n"
         "    The energy loss for the particle, in MeV/m, as a function of projectile energy.\n"
         "    This should be indexed in 1-keV steps.\n"
+        "ioniz : float\n"
+        "    The mean ionization potential of the gas, in eV.\n"
         "efield : ndarray\n"
         "    The electric field vector.\n"
         "numIters : int\n"
@@ -234,14 +236,15 @@ extern "C" {
         unsigned massNum;
         unsigned chargeNum;
         PyArrayObject* elossArr = NULL;
+        double ioniz;
         PyArrayObject* efieldArr = NULL;
         unsigned numIters;
         unsigned numPts;
         double redFactor;
 
-        if (!PyArg_ParseTuple(args, "O!O!O!iiO!O!iid",
+        if (!PyArg_ParseTuple(args, "O!O!O!iiO!dO!iid",
                               &PyArray_Type, &ctr0Arr, &PyArray_Type, &sig0Arr, &PyArray_Type, &trueValuesArr,
-                              &massNum, &chargeNum, &PyArray_Type, &elossArr, &PyArray_Type, &efieldArr,
+                              &massNum, &chargeNum, &PyArray_Type, &elossArr, &ioniz, &PyArray_Type, &efieldArr,
                               &numIters, &numPts, &redFactor)) {
             return NULL;
         }
@@ -261,7 +264,7 @@ extern "C" {
             return NULL;
         }
 
-        mcopt::MCminimizer minimizer {massNum, chargeNum, eloss, efield, arma::zeros<arma::vec>(3)};
+        mcopt::MCminimizer minimizer {massNum, chargeNum, eloss, efield, arma::zeros<arma::vec>(3), ioniz};
 
         arma::vec ctr;
         arma::mat allParams;
