@@ -256,7 +256,7 @@ extern "C" {
             ctr0 = convertPyArrayToArma(ctr0Arr, 7, 1);
             sig0 = convertPyArrayToArma(sig0Arr, 7, 1);
             efield = convertPyArrayToArma(efieldArr, 3, 1);
-            trueValues = convertPyArrayToArma(trueValuesArr, -1, 3);
+            trueValues = convertPyArrayToArma(trueValuesArr, -1, 4);
             eloss = convertPyArrayToVector(elossArr);
         }
         catch (std::exception& err) {
