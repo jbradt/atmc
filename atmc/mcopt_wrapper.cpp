@@ -110,6 +110,133 @@ static PyObject* convertArmaToPyArray(const arma::mat& matrix)
 }
 
 extern "C" {
+    typedef struct MCTracker {
+        PyObject_HEAD
+        mcopt::Tracker* tracker = NULL;
+    } MCTracker;
+
+    static int MCTracker_init(MCTracker* self, PyObject* args, PyObject* kwargs)
+    {
+        unsigned massNum;
+        unsigned chargeNum;
+        PyArrayObject* elossArray = NULL;
+        double efield[3];
+        double bfield[3];
+
+        char* kwlist[] = {"mass_num", "charge_num", "eloss", "efield", "bfield", NULL};
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "IIO!(ddd)(ddd)", kwlist,
+                                         &massNum, &chargeNum, &PyArray_Type, &elossArray,
+                                         &efield[0], &efield[1], &efield[2],
+                                         &bfield[0], &bfield[1], &bfield[2])) {
+            return -1;
+        }
+
+        std::vector<double> eloss;
+        try {
+            eloss = convertPyArrayToVector(elossArray);
+        }
+        catch (std::exception& err) {
+            PyErr_SetString(PyExc_ValueError, err.what());
+            return -1;
+        }
+
+        if (self->tracker != NULL) {
+            delete self->tracker;
+            self->tracker = NULL;
+        }
+
+        self->tracker = new mcopt::Tracker(massNum, chargeNum, eloss, arma::vec(efield, 3), arma::vec(bfield, 3));
+        return 0;
+    }
+
+    static void MCTracker_dealloc(MCTracker* self)
+    {
+        if (self->tracker != NULL) {
+            delete self->tracker;
+        }
+    }
+
+    static PyObject* MCTracker_trackParticle(MCTracker* self, PyObject* args)
+    {
+        double x0, y0, z0, enu0, azi0, pol0;
+
+        if (self->tracker == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "The internal mcopt::Tracker object was NULL.");
+            return NULL;
+        }
+        if (!PyArg_ParseTuple(args, "dddddd", &x0, &y0, &z0, &enu0, &azi0, &pol0)) {
+            return NULL;
+        }
+
+        mcopt::Track tr;
+        try {
+            tr = self->tracker->trackParticle(x0, y0, z0, enu0, azi0, pol0);
+        }
+        catch (const std::exception& e) {
+            PyErr_SetString(PyExc_RuntimeError, e.what());
+            return NULL;
+        }
+
+        PyObject* result = NULL;
+        try {
+            result = convertArmaToPyArray(tr.getMatrix());
+        }
+        catch (const std::bad_alloc&){
+            PyErr_NoMemory();
+            return NULL;
+        }
+        return result;
+    }
+
+    static PyMethodDef MCTracker_methods[] = {
+        {"track_particle", (PyCFunction)MCTracker_trackParticle, METH_VARARGS,
+         "Track a particle"
+        },
+        {NULL}  /* Sentinel */
+    };
+
+    static PyTypeObject MCTrackerType = {
+        PyVarObject_HEAD_INIT(NULL, 0)
+        "mcopt_wrapper.Tracker",   /* tp_name */
+        sizeof(MCTracker),         /* tp_basicsize */
+        0,                         /* tp_itemsize */
+        (destructor)MCTracker_dealloc, /* tp_dealloc */
+        0,                         /* tp_print */
+        0,                         /* tp_getattr */
+        0,                         /* tp_setattr */
+        0,                         /* tp_reserved */
+        0,                         /* tp_repr */
+        0,                         /* tp_as_number */
+        0,                         /* tp_as_sequence */
+        0,                         /* tp_as_mapping */
+        0,                         /* tp_hash  */
+        0,                         /* tp_call */
+        0,                         /* tp_str */
+        0,                         /* tp_getattro */
+        0,                         /* tp_setattro */
+        0,                         /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT,        /* tp_flags */
+        "mcopt Tracker",           /* tp_doc */
+        0,                         /* tp_traverse */
+        0,                         /* tp_clear */
+        0,                         /* tp_richcompare */
+        0,                         /* tp_weaklistoffset */
+        0,                         /* tp_iter */
+        0,                         /* tp_iternext */
+        MCTracker_methods,         /* tp_methods */
+        0,                         /* tp_members */
+        0,                         /* tp_getset */
+        0,                         /* tp_base */
+        0,                         /* tp_dict */
+        0,                         /* tp_descr_get */
+        0,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc)MCTracker_init,  /* tp_init */
+        0,                         /* tp_alloc */
+        0,                         /* tp_new */
+    };
+
     const char* mcopt_wrapper_track_particle_docstring =
         "Simulate the trajectory of a particle.\n"
         "\n"
@@ -381,6 +508,16 @@ extern "C" {
     PyInit_mcopt_wrapper(void)
     {
         import_array();
-        return PyModule_Create(&mcopt_wrapper_module);
+
+        if (PyType_Ready(&MCTrackerType) < 0) return NULL;
+
+        PyObject* m = PyModule_Create(&mcopt_wrapper_module);
+        if (m == NULL) return NULL;
+
+        MCTrackerType.tp_new = PyType_GenericNew;
+        Py_INCREF(&MCTrackerType);
+        PyModule_AddObject(m, "Tracker", (PyObject*)&MCTrackerType);
+
+        return m;
     }
 }
