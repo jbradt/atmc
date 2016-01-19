@@ -11,6 +11,7 @@ extern "C" {
 #include <stdio.h>
 #include <string>
 #include <type_traits>
+#include <map>
 
 class WrongDimensions : public std::exception
 {
@@ -131,6 +132,17 @@ static PyObject* convertArmaToPyArray(const arma::mat& matrix)
     }
 
     return result;
+}
+
+static mcopt::Track convertArmaToTrack(const arma::mat& matrix)
+{
+    if (matrix.n_cols != 7) throw BadArrayLayout();
+    mcopt::Track tr;
+    for (arma::uword i = 0; i < matrix.n_rows; i++) {
+        arma::rowvec r = matrix.row(i);
+        tr.append(r(0), r(1), r(2), r(3), r(4), r(5), r(6));
+    }
+    return tr;
 }
 
 // -------------------------------------------------------------------------------------------------------------------
@@ -521,6 +533,11 @@ extern "C" {
         return Py_BuildValue("H", pad);
     }
 
+    static mcopt::PadPlane* MCPadPlane_getObjPointer(MCPadPlane* self)
+    {
+        return self->padplane;
+    }
+
     static PyMethodDef MCPadPlane_methods[] = {
         {"get_pad_number_from_coordinates", (PyCFunction)MCPadPlane_getPadNumberFromCoordinates, METH_VARARGS,
          "Get pad number from x and y coordinates."
@@ -565,6 +582,166 @@ extern "C" {
         0,                         /* tp_descr_set */
         0,                         /* tp_dictoffset */
         (initproc)MCPadPlane_init,  /* tp_init */
+        0,                         /* tp_alloc */
+        0,                         /* tp_new */
+    };
+
+    // ---------------------------------------------------------------------------------------------------------------
+
+    typedef struct MCEventGenerator {
+        PyObject_HEAD
+        PyObject* padplaneObj = NULL;
+        mcopt::EventGenerator* evtgen = NULL;
+    } MCEventGenerator;
+
+    static int MCEventGenerator_init(MCEventGenerator* self, PyObject* args, PyObject* kwargs)
+    {
+        PyObject* pads = NULL;
+        double vd[3], clock, shape;
+        unsigned massNum;
+        double ioniz;
+        unsigned gain;
+
+        char* kwlist[] = {"pad_plane", "vd", "clock", "shape", "mass_num", "ioniz", "gain", NULL};
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!(ddd)ddIdI", kwlist,
+                                         &MCPadPlaneType, &pads, &vd[0], &vd[1], &vd[2], &clock, &shape,
+                                         &massNum, &ioniz, &gain)) {
+            return -1;
+        }
+
+        PyObject* tmp = self->padplaneObj;
+        Py_INCREF(pads);
+        self->padplaneObj = pads;
+        Py_XDECREF(tmp);
+
+        if (self->evtgen != NULL) {
+            delete self->evtgen;
+            self->evtgen = NULL;
+        }
+
+        mcopt::PadPlane* padObjPtr = MCPadPlane_getObjPointer((MCPadPlane*)(self->padplaneObj));  // Can this be NULL?
+
+        self->evtgen = new mcopt::EventGenerator(*padObjPtr, arma::vec(vd, 3), clock, shape, massNum, ioniz, gain);
+        return 0;
+    }
+
+    static void MCEventGenerator_dealloc(MCEventGenerator* self)
+    {
+        if (self->evtgen != NULL) {
+            delete self->evtgen;
+            self->evtgen = NULL;
+        }
+        Py_XDECREF(self->padplaneObj);
+    }
+
+    static PyObject* MCEventGenerator_makeEvent(MCEventGenerator* self, PyObject* args)
+    {
+        PyArrayObject* trArr = NULL;
+        if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &trArr)) return NULL;
+
+        mcopt::Track tr;
+        try {
+            arma::mat trMat = convertPyArrayToArma<double>(trArr, -1, 7);
+            tr = convertArmaToTrack(trMat);
+        }
+        catch (const std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            return NULL;
+        }
+
+        std::map<mcopt::pad_t, arma::vec> evt;
+        try {
+            evt = self->evtgen->makeEvent(tr);
+        }
+        catch (const std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            return NULL;
+        }
+
+        PyObject* resDict = PyDict_New();
+        if (resDict == NULL) return NULL;
+
+        for (const auto& pair : evt) {
+            const mcopt::pad_t pad = pair.first;
+            const arma::vec& sig = pair.second;
+
+            PyObject* key = NULL;
+            key = PyLong_FromUnsignedLong(pad);
+            if (key == NULL) {
+                Py_XDECREF(resDict);
+                return NULL;
+            }
+
+            PyObject* sigArr = NULL;
+            try {
+                sigArr = convertArmaToPyArray(sig);
+            }
+            catch (const std::exception& err) {
+                PyErr_SetString(PyExc_RuntimeError, err.what());
+                Py_XDECREF(key);
+                Py_XDECREF(resDict);
+                return NULL;
+            }
+
+            if (PyDict_SetItem(resDict, key, sigArr) < 0) {
+                PyErr_SetString(PyExc_RuntimeError, "Failed to insert result into dict.");
+                Py_XDECREF(key);
+                Py_XDECREF(sigArr);
+                Py_XDECREF(resDict);
+                return NULL;
+            }
+            Py_DECREF(key);
+            Py_DECREF(sigArr);
+        }
+
+        return resDict;
+    }
+
+    static PyMethodDef MCEventGenerator_methods[] = {
+        {"make_event", (PyCFunction)MCEventGenerator_makeEvent, METH_VARARGS,
+         "Generate an event from the tracked particle matrix."
+        },
+        {NULL}  /* Sentinel */
+    };
+
+    static PyTypeObject MCEventGeneratorType = {
+        PyVarObject_HEAD_INIT(NULL, 0)
+        "mcopt_wrapper.EventGenerator",  /* tp_name */
+        sizeof(MCEventGenerator),  /* tp_basicsize */
+        0,                         /* tp_itemsize */
+        (destructor)MCEventGenerator_dealloc, /* tp_dealloc */
+        0,                         /* tp_print */
+        0,                         /* tp_getattr */
+        0,                         /* tp_setattr */
+        0,                         /* tp_reserved */
+        0,                         /* tp_repr */
+        0,                         /* tp_as_number */
+        0,                         /* tp_as_sequence */
+        0,                         /* tp_as_mapping */
+        0,                         /* tp_hash  */
+        0,                         /* tp_call */
+        0,                         /* tp_str */
+        0,                         /* tp_getattro */
+        0,                         /* tp_setattro */
+        0,                         /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
+        "mcopt PadPlane",          /* tp_doc */
+        0,                         /* tp_traverse */
+        0,                         /* tp_clear */
+        0,                         /* tp_richcompare */
+        0,                         /* tp_weaklistoffset */
+        0,                         /* tp_iter */
+        0,                         /* tp_iternext */
+        MCEventGenerator_methods,  /* tp_methods */
+        0,                         /* tp_members */
+        0,                         /* tp_getset */
+        0,                         /* tp_base */
+        0,                         /* tp_dict */
+        0,                         /* tp_descr_get */
+        0,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc)MCEventGenerator_init,  /* tp_init */
         0,                         /* tp_alloc */
         0,                         /* tp_new */
     };
@@ -635,6 +812,9 @@ extern "C" {
         MCPadPlaneType.tp_new = PyType_GenericNew;
         if (PyType_Ready(&MCPadPlaneType) < 0) return NULL;
 
+        MCEventGeneratorType.tp_new = PyType_GenericNew;
+        if (PyType_Ready(&MCEventGeneratorType) < 0) return NULL;
+
         PyObject* m = PyModule_Create(&mcopt_wrapper_module);
         if (m == NULL) return NULL;
 
@@ -646,6 +826,9 @@ extern "C" {
 
         Py_INCREF(&MCPadPlaneType);
         PyModule_AddObject(m, "PadPlane", (PyObject*)&MCPadPlaneType);
+
+        Py_INCREF(&MCEventGeneratorType);
+        PyModule_AddObject(m, "EventGenerator", (PyObject*)&MCEventGeneratorType);
 
         return m;
     }

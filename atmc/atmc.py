@@ -1,7 +1,8 @@
 import numpy as np
 import atmc.mcopt_wrapper as mcopt
+from atmc.mcopt_wrapper import PadPlane, EventGenerator
 
-__all__ = ['Tracker', 'Minimizer']
+__all__ = ['Tracker', 'Minimizer', 'PadPlane', 'EventGenerator']
 
 
 class Tracker(mcopt.Tracker):
