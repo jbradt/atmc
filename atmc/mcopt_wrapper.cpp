@@ -277,8 +277,8 @@ extern "C" {
             self->minimizer = NULL;
         }
 
-        self->minimizer = new mcopt::MCminimizer(massNum, chargeNum, eloss, arma::vec(efield, 3), arma::vec(bfield, 3),
-                                                 ioniz);
+        self->minimizer = new mcopt::MCminimizer(mcopt::Tracker(massNum, chargeNum, eloss,
+                                                                arma::vec(efield, 3), arma::vec(bfield, 3)));
         return 0;
     }
 
