@@ -10,6 +10,7 @@ extern "C" {
 #include <cassert>
 #include <stdio.h>
 #include <string>
+#include <type_traits>
 
 class WrongDimensions : public std::exception
 {
@@ -19,6 +20,16 @@ public:
 
 private:
     std::string msg = "The dimensions were incorrect";
+};
+
+class NotImplemented : public std::exception
+{
+public:
+    NotImplemented() {}
+    const char* what() const noexcept { return msg.c_str(); }
+
+private:
+    std::string msg = "Not implemented";
 };
 
 class BadArrayLayout : public std::exception
@@ -67,24 +78,36 @@ static bool checkPyArrayDimensions(PyArrayObject* pyarr, const npy_intp dim0, co
     }
 }
 
-static arma::mat convertPyArrayToArma(PyArrayObject* pyarr, int nrows, int ncols)
+template<typename outT>
+static arma::Mat<outT> convertPyArrayToArma(PyArrayObject* pyarr, int nrows, int ncols)
 {
     if (!checkPyArrayDimensions(pyarr, nrows, ncols)) throw WrongDimensions();
-    const auto dims = getPyArrayDimensions(pyarr);
-    if (dims.size() == 1) {
-        double* dataPtr = static_cast<double*>(PyArray_DATA(pyarr));
-        return arma::vec(dataPtr, dims[0], true);
+
+    int arrTypeCode;
+    if (std::is_same<outT, uint16_t>::value) {
+        arrTypeCode = NPY_UINT16;
+    }
+    else if (std::is_same<outT, double>::value) {
+        arrTypeCode = NPY_DOUBLE;
     }
     else {
-        // Convert the array to a Fortran-contiguous (col-major) array of doubles, as required by Armadillo
-        PyArray_Descr* reqDescr = PyArray_DescrFromType(NPY_DOUBLE);
+        throw NotImplemented();
+    }
+
+    const auto dims = getPyArrayDimensions(pyarr);
+    if (dims.size() == 1) {
+        outT* dataPtr = static_cast<outT*>(PyArray_DATA(pyarr));  // HACK: Potentially dangerous casting...
+        return arma::Col<outT>(dataPtr, dims[0], true);
+    }
+    else {
+        PyArray_Descr* reqDescr = PyArray_DescrFromType(arrTypeCode);
         if (reqDescr == NULL) throw std::bad_alloc();
         PyArrayObject* cleanArr = (PyArrayObject*)PyArray_FromArray(pyarr, reqDescr, NPY_ARRAY_FARRAY);
         if (cleanArr == NULL) throw std::bad_alloc();
         reqDescr = NULL;  // The new reference from DescrFromType was stolen by FromArray
 
-        double* dataPtr = static_cast<double*>(PyArray_DATA(cleanArr));
-        arma::mat result (dataPtr, dims[0], dims[1], true);  // this copies the data from cleanArr
+        outT* dataPtr = static_cast<outT*>(PyArray_DATA(cleanArr));
+        arma::Mat<outT> result (dataPtr, dims[0], dims[1], true);  // this copies the data from cleanArr
         Py_DECREF(cleanArr);
         return result;
     }
@@ -316,9 +339,9 @@ extern "C" {
         arma::vec ctr0, sig0;
         arma::mat trueValues;
         try {
-            ctr0 = convertPyArrayToArma(ctr0Arr, 7, 1);
-            sig0 = convertPyArrayToArma(sig0Arr, 7, 1);
-            trueValues = convertPyArrayToArma(trueValuesArr, -1, 4);
+            ctr0 = convertPyArrayToArma<double>(ctr0Arr, 7, 1);
+            sig0 = convertPyArrayToArma<double>(sig0Arr, 7, 1);
+            trueValues = convertPyArrayToArma<double>(trueValuesArr, -1, 4);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_ValueError, err.what());
@@ -432,6 +455,122 @@ extern "C" {
 
     //  --------------------------------------------------------------------------------------------------------------
 
+    typedef struct MCPadPlane {
+        PyObject_HEAD
+        mcopt::PadPlane* padplane = NULL;
+    } MCPadPlane;
+
+    static int MCPadPlane_init(MCPadPlane* self, PyObject* args, PyObject* kwargs)
+    {
+        PyArrayObject* ltArray = NULL;
+        double xLB, xDelta, yLB, yDelta, rotAngle = 0;
+
+        char* kwlist[] = {"lookup_table", "x_lower_bound", "x_delta", "y_lower_bound", "y_delta", "rot_angle", NULL};
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!dddd|d", kwlist,
+                                         &PyArray_Type, &ltArray, &xLB, &xDelta, &yLB, &yDelta, &rotAngle)) {
+            return -1;
+        }
+
+        arma::Mat<mcopt::pad_t> lt;
+        try {
+            lt = convertPyArrayToArma<mcopt::pad_t>(ltArray, -1, -1);
+        }
+        catch (const std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            return -1;
+        }
+
+        if (self->padplane != NULL) {
+            delete self->padplane;
+            self->padplane = NULL;
+        }
+
+        self->padplane = new mcopt::PadPlane(lt, xLB, xDelta, yLB, yDelta, rotAngle);
+        return 0;
+    }
+
+    static void MCPadPlane_dealloc(MCPadPlane* self)
+    {
+        if (self->padplane != NULL) {
+            delete self->padplane;
+            self->padplane = NULL;
+        }
+    }
+
+    static PyObject* MCPadPlane_getPadNumberFromCoordinates(MCPadPlane* self, PyObject* args)
+    {
+        double x, y;
+
+        if (!PyArg_ParseTuple(args, "dd", &x, &y)) return NULL;
+
+        if (self->padplane == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "Internal mcopt::PadPlane object was NULL.");
+            return NULL;
+        }
+
+        mcopt::pad_t pad;
+        try {
+            pad = self->padplane->getPadNumberFromCoordinates(x, y);
+        }
+        catch (const std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            return NULL;
+        }
+
+        return Py_BuildValue("H", pad);
+    }
+
+    static PyMethodDef MCPadPlane_methods[] = {
+        {"get_pad_number_from_coordinates", (PyCFunction)MCPadPlane_getPadNumberFromCoordinates, METH_VARARGS,
+         "Get pad number from x and y coordinates."
+        },
+        {NULL}  /* Sentinel */
+    };
+
+    static PyTypeObject MCPadPlaneType = {
+        PyVarObject_HEAD_INIT(NULL, 0)
+        "mcopt_wrapper.PadPlane",  /* tp_name */
+        sizeof(MCPadPlane),     /* tp_basicsize */
+        0,                         /* tp_itemsize */
+        (destructor)MCPadPlane_dealloc, /* tp_dealloc */
+        0,                         /* tp_print */
+        0,                         /* tp_getattr */
+        0,                         /* tp_setattr */
+        0,                         /* tp_reserved */
+        0,                         /* tp_repr */
+        0,                         /* tp_as_number */
+        0,                         /* tp_as_sequence */
+        0,                         /* tp_as_mapping */
+        0,                         /* tp_hash  */
+        0,                         /* tp_call */
+        0,                         /* tp_str */
+        0,                         /* tp_getattro */
+        0,                         /* tp_setattro */
+        0,                         /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
+        "mcopt PadPlane",          /* tp_doc */
+        0,                         /* tp_traverse */
+        0,                         /* tp_clear */
+        0,                         /* tp_richcompare */
+        0,                         /* tp_weaklistoffset */
+        0,                         /* tp_iter */
+        0,                         /* tp_iternext */
+        MCPadPlane_methods,     /* tp_methods */
+        0,                         /* tp_members */
+        0,                         /* tp_getset */
+        0,                         /* tp_base */
+        0,                         /* tp_dict */
+        0,                         /* tp_descr_get */
+        0,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc)MCPadPlane_init,  /* tp_init */
+        0,                         /* tp_alloc */
+        0,                         /* tp_new */
+    };
+
+    // ---------------------------------------------------------------------------------------------------------------
+
     static PyObject* mcopt_wrapper_find_deviations(PyObject* self, PyObject* args)
     {
         PyArrayObject* simArr = NULL;
@@ -443,8 +582,8 @@ extern "C" {
 
         PyObject* devArr = NULL;
         try {
-            arma::mat simMat = convertPyArrayToArma(simArr, -1, -1);
-            arma::mat expMat = convertPyArrayToArma(expArr, -1, -1);
+            arma::mat simMat = convertPyArrayToArma<double>(simArr, -1, -1);
+            arma::mat expMat = convertPyArrayToArma<double>(expArr, -1, -1);
 
             // printf("SimMat has shape (%lld, %lld)", simMat.n_rows, simMat.n_cols);
             // printf("ExpMat has shape (%lld, %lld)", expMat.n_rows, expMat.n_cols);
@@ -493,6 +632,9 @@ extern "C" {
         MCMCminimizerType.tp_new = PyType_GenericNew;
         if (PyType_Ready(&MCMCminimizerType) < 0) return NULL;
 
+        MCPadPlaneType.tp_new = PyType_GenericNew;
+        if (PyType_Ready(&MCPadPlaneType) < 0) return NULL;
+
         PyObject* m = PyModule_Create(&mcopt_wrapper_module);
         if (m == NULL) return NULL;
 
@@ -501,6 +643,9 @@ extern "C" {
 
         Py_INCREF(&MCMCminimizerType);
         PyModule_AddObject(m, "Minimizer", (PyObject*)&MCMCminimizerType);
+
+        Py_INCREF(&MCPadPlaneType);
+        PyModule_AddObject(m, "PadPlane", (PyObject*)&MCPadPlaneType);
 
         return m;
     }
