@@ -3,6 +3,7 @@
 extern "C" {
     #include <Python.h>
     #include <numpy/arrayobject.h>
+    #include "docstrings.h"
 }
 #include "mcopt.h"
 #include <exception>
@@ -108,6 +109,8 @@ static PyObject* convertArmaToPyArray(const arma::mat& matrix)
 
     return result;
 }
+
+// -------------------------------------------------------------------------------------------------------------------
 
 extern "C" {
     typedef struct MCTracker {
@@ -216,7 +219,7 @@ extern "C" {
         0,                         /* tp_getattro */
         0,                         /* tp_setattro */
         0,                         /* tp_as_buffer */
-        Py_TPFLAGS_DEFAULT,        /* tp_flags */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /* tp_flags */
         "mcopt Tracker",           /* tp_doc */
         0,                         /* tp_traverse */
         0,                         /* tp_clear */
@@ -237,161 +240,90 @@ extern "C" {
         0,                         /* tp_new */
     };
 
-    const char* mcopt_wrapper_track_particle_docstring =
-        "Simulate the trajectory of a particle.\n"
-        "\n"
-        "Parameters\n"
-        "----------\n"
-        "x0, y0, z0, enu0, azi0, pol0 : float\n"
-        "    The initial position (m), energy per nucleon (MeV/u), and azimuthal and polar angles (rad).\n"
-        "massNum, chargeNum : int\n"
-        "    The mass and charge numbers of the projectile.\n"
-        "eloss : ndarray\n"
-        "    The energy loss for the particle, in MeV/m, as a function of projectile energy.\n"
-        "    This should be indexed in 1-keV steps.\n"
-        "efield, bfield : array-like\n"
-        "    The electric and magnetic fields, in SI units.\n"
-        "\n"
-        "Returns\n"
-        "-------\n"
-        "ndarray\n"
-        "    The simulated track. The columns are x, y, z, time, energy/nucleon, azimuthal angle, polar angle.\n"
-        "    The positions are in meters, the time is in seconds, and the energy is in MeV/u.\n"
-        "\n"
-        "Raises\n"
-        "------\n"
-        "ValueError\n"
-        "    If the dimensions of an input array were invalid.\n"
-        "RuntimeError\n"
-        "    If tracking fails for some reason.\n";
-    static PyObject* mcopt_wrapper_track_particle(PyObject* self, PyObject* args)
+    // ---------------------------------------------------------------------------------------------------------------
+
+    typedef struct MCMCminimizer {
+        PyObject_HEAD
+        mcopt::MCminimizer* minimizer = NULL;
+    } MCMCminimizer;
+
+    static int MCMCminimizer_init(MCMCminimizer* self, PyObject* args, PyObject* kwargs)
     {
-        double x0, y0, z0, enu0, azi0, pol0;
-        unsigned int massNum, chargeNum;
-        double efield[3];
-        double bfield[3];
-        PyArrayObject* eloss_array = NULL;
-        if (!PyArg_ParseTuple(args, "ddddddiiO!(ddd)(ddd)", &x0, &y0, &z0, &enu0, &azi0, &pol0,
-                              &massNum, &chargeNum, &PyArray_Type, &eloss_array, &efield[0], &efield[1], &efield[2],
-                              &bfield[0], &bfield[1], &bfield[2])) {
-            return NULL;
+        unsigned massNum, chargeNum;
+        PyArrayObject* elossArray = NULL;
+        double efield[3], bfield[3];
+        double ioniz;
+
+        char* kwlist[] = {"mass_num", "charge_num", "eloss", "efield", "bfield", "ioniz", NULL};
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "IIO!(ddd)(ddd)d", kwlist,
+                                         &massNum, &chargeNum, &PyArray_Type, &elossArray,
+                                         &efield[0], &efield[1], &efield[2],
+                                         &bfield[0], &bfield[1], &bfield[2], &ioniz)) {
+            return -1;
         }
 
         std::vector<double> eloss;
         try {
-            eloss = convertPyArrayToVector(eloss_array);
+            eloss = convertPyArrayToVector(elossArray);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_ValueError, err.what());
-            return NULL;
+            return -1;
         }
 
-        mcopt::Tracker tracker {massNum, chargeNum, eloss, arma::vec(efield, 3), arma::vec(bfield, 3)};
-
-        mcopt::Track tr;
-        try {
-            tr = tracker.trackParticle(x0, y0, z0, enu0, azi0, pol0);
-        }
-        catch (std::exception& err) {
-            PyErr_SetString(PyExc_RuntimeError, err.what());
-            return NULL;
+        if (self->minimizer != NULL) {
+            delete self->minimizer;
+            self->minimizer = NULL;
         }
 
-        PyObject* result = NULL;
-        try {
-            result = convertArmaToPyArray(tr.getMatrix());
-        }
-        catch (const std::bad_alloc&){
-            PyErr_NoMemory();
-            return NULL;
-        }
-
-        return result;
+        self->minimizer = new mcopt::MCminimizer(massNum, chargeNum, eloss, arma::vec(efield, 3), arma::vec(bfield, 3),
+                                                 ioniz);
+        return 0;
     }
 
-    const char* mcopt_wrapper_MCminimize_docstring =
-        "Perform chi^2 minimization for the track.\n"
-        "\n"
-        "Parameters\n"
-        "----------\n"
-        "ctr0 : ndarray\n"
-        "    The initial guess for the track's parameters. These are (x0, y0, z0, enu0, azi0, pol0, bmag0).\n"
-        "sig0 : ndarray\n"
-        "    The initial width of the parameter space in each dimension. The distribution will be centered on `ctr0` with a\n"
-        "    width of `sig0 / 2` in each direction.\n"
-        "trueValues : ndarray\n"
-        "    The experimental data points, as (x, y, z) triples.\n"
-        "massNum, chargeNum : int\n"
-        "    The mass and charge number of the projectile.\n"
-        "eloss : ndarray\n"
-        "    The energy loss for the particle, in MeV/m, as a function of projectile energy.\n"
-        "    This should be indexed in 1-keV steps.\n"
-        "ioniz : float\n"
-        "    The mean ionization potential of the gas, in eV.\n"
-        "efield : ndarray\n"
-        "    The electric field vector.\n"
-        "numIters : int\n"
-        "    The number of iterations to perform before stopping. Each iteration draws `numPts` samples and picks the best one.\n"
-        "numPts : int\n"
-        "    The number of samples to draw in each iteration. The tracking function will be evaluated `numPts * numIters` times.\n"
-        "redFactor : float\n"
-        "    The factor to multiply the width of the parameter space by on each iteration. Should be <= 1.\n"
-        "\n"
-        "Returns\n"
-        "-------\n"
-        "ctr : ndarray\n"
-        "    The fitted track parameters.\n"
-        "minChis : ndarray\n"
-        "    The minimum chi^2 value at the end of each iteration.\n"
-        "allParams : ndarray\n"
-        "    The parameters from all generated tracks. There will be `numIters * numPts` rows.\n"
-        "goodParamIdx : ndarray\n"
-        "    The row numbers in `allParams` corresponding to the best points from each iteration, i.e. the ones whose\n"
-        "    chi^2 values are in `minChis`.\n"
-        "\n"
-        "Raises\n"
-        "------\n"
-        "ValueError\n"
-        "    If a provided array has invalid dimensions.\n"
-        "RuntimeError\n"
-        "    If tracking fails for some reason.\n";
-    static PyObject* mcopt_wrapper_MCminimize(PyObject* self, PyObject* args)
+    static void MCMCminimizer_dealloc(MCMCminimizer* self)
+    {
+        if (self->minimizer != NULL) {
+            delete self->minimizer;
+            self->minimizer = NULL;
+        }
+    }
+
+    static PyObject* MCMCminimizer_minimize(MCMCminimizer* self, PyObject* args, PyObject* kwargs)
     {
         PyArrayObject* ctr0Arr = NULL;
         PyArrayObject* sig0Arr = NULL;
         PyArrayObject* trueValuesArr = NULL;
-        unsigned massNum;
-        unsigned chargeNum;
-        PyArrayObject* elossArr = NULL;
-        double ioniz;
-        PyArrayObject* efieldArr = NULL;
-        unsigned numIters;
-        unsigned numPts;
-        double redFactor;
+        unsigned numIters = 10;
+        unsigned numPts = 200;
+        double redFactor = 0.8;
+        bool details = false;
 
-        if (!PyArg_ParseTuple(args, "O!O!O!iiO!dO!iid",
-                              &PyArray_Type, &ctr0Arr, &PyArray_Type, &sig0Arr, &PyArray_Type, &trueValuesArr,
-                              &massNum, &chargeNum, &PyArray_Type, &elossArr, &ioniz, &PyArray_Type, &efieldArr,
-                              &numIters, &numPts, &redFactor)) {
+        char* kwlist[] = {"ctr0", "sig0", "true_values", "num_iters", "num_pts", "red_factor", "details", NULL};
+
+        if (self->minimizer == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "The internal mcopt::MCminimizer object was NULL.");
             return NULL;
         }
-        arma::vec ctr0, sig0, efield;
-        arma::mat trueValues;
-        std::vector<double> eloss;
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!O!|IIdp", kwlist,
+                                         &PyArray_Type, &ctr0Arr, &PyArray_Type, &sig0Arr,
+                                         &PyArray_Type, &trueValuesArr, &numIters, &numPts,
+                                         &redFactor, &details)) {
+            return NULL;
+        }
 
+        arma::vec ctr0, sig0;
+        arma::mat trueValues;
         try {
             ctr0 = convertPyArrayToArma(ctr0Arr, 7, 1);
             sig0 = convertPyArrayToArma(sig0Arr, 7, 1);
-            efield = convertPyArrayToArma(efieldArr, 3, 1);
             trueValues = convertPyArrayToArma(trueValuesArr, -1, 4);
-            eloss = convertPyArrayToVector(elossArr);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_ValueError, err.what());
             return NULL;
         }
-
-        mcopt::MCminimizer minimizer {massNum, chargeNum, eloss, efield, arma::zeros<arma::vec>(3), ioniz};
 
         arma::vec ctr;
         arma::mat allParams;
@@ -399,59 +331,107 @@ extern "C" {
         arma::vec goodParamIdx;
         try {
             std::tie(ctr, allParams, minChis, goodParamIdx) =
-                minimizer.minimize(ctr0, sig0, trueValues, numIters, numPts, redFactor);
+                self->minimizer->minimize(ctr0, sig0, trueValues, numIters, numPts, redFactor);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_RuntimeError, err.what());
             return NULL;
         }
 
-        assert(ctr.n_rows == ctr0.n_rows);
-
-        // Allocate numpy arrays to return
         PyObject* ctrArr = NULL;
-        PyObject* allParamsArr = NULL;
-        PyObject* minChisArr = NULL;
-        PyObject* goodParamIdxArr = NULL;
-
         try {
             ctrArr = convertArmaToPyArray(ctr);
-            allParamsArr = convertArmaToPyArray(allParams);
-            minChisArr = convertArmaToPyArray(minChis);
-            goodParamIdxArr = convertArmaToPyArray(goodParamIdx);
         }
-        catch (std::bad_alloc) {
-            Py_XDECREF(ctrArr);
-            Py_XDECREF(allParamsArr);
-            Py_XDECREF(minChisArr);
-            Py_XDECREF(goodParamIdxArr);
-
+        catch (const std::bad_alloc&) {
             PyErr_NoMemory();
             return NULL;
         }
 
-        PyObject* result = Py_BuildValue("OOOO", ctrArr, minChisArr, allParamsArr, goodParamIdxArr);
-        Py_DECREF(ctrArr);
-        Py_DECREF(allParamsArr);
-        Py_DECREF(minChisArr);
-        Py_DECREF(goodParamIdxArr);
-        return result;
+        if (details) {
+            PyObject* allParamsArr = NULL;
+            PyObject* minChisArr = NULL;
+            PyObject* goodParamIdxArr = NULL;
+
+            try {
+                allParamsArr = convertArmaToPyArray(allParams);
+                minChisArr = convertArmaToPyArray(minChis);
+                goodParamIdxArr = convertArmaToPyArray(goodParamIdx);
+            }
+            catch (const std::bad_alloc&) {
+                Py_DECREF(ctrArr);
+                Py_XDECREF(allParamsArr);
+                Py_XDECREF(minChisArr);
+                Py_XDECREF(goodParamIdxArr);
+
+                PyErr_NoMemory();
+                return NULL;
+            }
+
+            PyObject* result = Py_BuildValue("OOOO", ctrArr, minChisArr, allParamsArr, goodParamIdxArr);
+            Py_DECREF(ctrArr);
+            Py_DECREF(allParamsArr);
+            Py_DECREF(minChisArr);
+            Py_DECREF(goodParamIdxArr);
+            return result;
+        }
+        else {
+            double lastChi = minChis(minChis.n_rows-1);
+            PyObject* result = Py_BuildValue("Od", ctrArr, lastChi);
+            Py_DECREF(ctrArr);
+            return result;
+        }
     }
 
-    const char* mcopt_wrapper_find_deviations_docstring =
-        "Find the deviations. These can be summed to find chi^2.\n"
-        "\n"
-        "Parameters\n"
-        "----------\n"
-        "simArr : ndarray\n"
-        "    The simulated track.\n"
-        "expArr : ndarray\n"
-        "    The experimental data.\n"
-        "\n"
-        "Returns\n"
-        "-------\n"
-        "devArr : ndarray\n"
-        "    The array of differences (or deviations).\n";
+    static PyMethodDef MCMCminimizer_methods[] = {
+        {"minimize", (PyCFunction)MCMCminimizer_minimize, METH_VARARGS | METH_KEYWORDS,
+         "Perform MC minimization"
+        },
+        {NULL}  /* Sentinel */
+    };
+
+    static PyTypeObject MCMCminimizerType = {
+        PyVarObject_HEAD_INIT(NULL, 0)
+        "mcopt_wrapper.Minimizer", /* tp_name */
+        sizeof(MCMCminimizer),     /* tp_basicsize */
+        0,                         /* tp_itemsize */
+        (destructor)MCMCminimizer_dealloc, /* tp_dealloc */
+        0,                         /* tp_print */
+        0,                         /* tp_getattr */
+        0,                         /* tp_setattr */
+        0,                         /* tp_reserved */
+        0,                         /* tp_repr */
+        0,                         /* tp_as_number */
+        0,                         /* tp_as_sequence */
+        0,                         /* tp_as_mapping */
+        0,                         /* tp_hash  */
+        0,                         /* tp_call */
+        0,                         /* tp_str */
+        0,                         /* tp_getattro */
+        0,                         /* tp_setattro */
+        0,                         /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
+        "mcopt Minimizer",         /* tp_doc */
+        0,                         /* tp_traverse */
+        0,                         /* tp_clear */
+        0,                         /* tp_richcompare */
+        0,                         /* tp_weaklistoffset */
+        0,                         /* tp_iter */
+        0,                         /* tp_iternext */
+        MCMCminimizer_methods,     /* tp_methods */
+        0,                         /* tp_members */
+        0,                         /* tp_getset */
+        0,                         /* tp_base */
+        0,                         /* tp_dict */
+        0,                         /* tp_descr_get */
+        0,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc)MCMCminimizer_init,  /* tp_init */
+        0,                         /* tp_alloc */
+        0,                         /* tp_new */
+    };
+
+    //  --------------------------------------------------------------------------------------------------------------
+
     static PyObject* mcopt_wrapper_find_deviations(PyObject* self, PyObject* args)
     {
         PyArrayObject* simArr = NULL;
@@ -489,8 +469,6 @@ extern "C" {
 
     static PyMethodDef mcopt_wrapper_methods[] =
     {
-        {"track_particle", mcopt_wrapper_track_particle, METH_VARARGS, mcopt_wrapper_track_particle_docstring},
-        {"MCminimize", mcopt_wrapper_MCminimize, METH_VARARGS, mcopt_wrapper_MCminimize_docstring},
         {"find_deviations", mcopt_wrapper_find_deviations, METH_VARARGS, mcopt_wrapper_find_deviations_docstring},
         {NULL, NULL, 0, NULL}
     };
@@ -509,14 +487,20 @@ extern "C" {
     {
         import_array();
 
+        MCTrackerType.tp_new = PyType_GenericNew;
         if (PyType_Ready(&MCTrackerType) < 0) return NULL;
+
+        MCMCminimizerType.tp_new = PyType_GenericNew;
+        if (PyType_Ready(&MCMCminimizerType) < 0) return NULL;
 
         PyObject* m = PyModule_Create(&mcopt_wrapper_module);
         if (m == NULL) return NULL;
 
-        MCTrackerType.tp_new = PyType_GenericNew;
         Py_INCREF(&MCTrackerType);
         PyModule_AddObject(m, "Tracker", (PyObject*)&MCTrackerType);
+
+        Py_INCREF(&MCMCminimizerType);
+        PyModule_AddObject(m, "Minimizer", (PyObject*)&MCMCminimizerType);
 
         return m;
     }
