@@ -1,3 +1,7 @@
+#pragma clang diagnostic ignored "-Wglobal-constructors"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wwritable-strings"
+
 #define NPY_NO_DEPRECATED_API NPY_1_9_API_VERSION
 
 extern "C" {
@@ -8,7 +12,6 @@ extern "C" {
 #include "mcopt.h"
 #include <exception>
 #include <cassert>
-#include <stdio.h>
 #include <string>
 #include <type_traits>
 #include <map>
@@ -228,9 +231,7 @@ extern "C" {
     }
 
     static PyMethodDef MCTracker_methods[] = {
-        {"track_particle", (PyCFunction)MCTracker_trackParticle, METH_VARARGS,
-         "Track a particle"
-        },
+        {"track_particle", (PyCFunction)MCTracker_trackParticle, METH_VARARGS, MCTracker_trackParticle_doc},
         {NULL}  /* Sentinel */
     };
 
@@ -255,7 +256,7 @@ extern "C" {
         0,                         /* tp_setattro */
         0,                         /* tp_as_buffer */
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,        /* tp_flags */
-        "mcopt Tracker",           /* tp_doc */
+        MCTracker_doc,             /* tp_doc */
         0,                         /* tp_traverse */
         0,                         /* tp_clear */
         0,                         /* tp_richcompare */
@@ -418,9 +419,7 @@ extern "C" {
     }
 
     static PyMethodDef MCMCminimizer_methods[] = {
-        {"minimize", (PyCFunction)MCMCminimizer_minimize, METH_VARARGS | METH_KEYWORDS,
-         "Perform MC minimization"
-        },
+        {"minimize", (PyCFunction)MCMCminimizer_minimize, METH_VARARGS | METH_KEYWORDS, MCMCminimizer_minimize_doc},
         {NULL}  /* Sentinel */
     };
 
@@ -445,7 +444,7 @@ extern "C" {
         0,                         /* tp_setattro */
         0,                         /* tp_as_buffer */
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
-        "mcopt Minimizer",         /* tp_doc */
+        MCMCminimizer_doc,         /* tp_doc */
         0,                         /* tp_traverse */
         0,                         /* tp_clear */
         0,                         /* tp_richcompare */
@@ -540,8 +539,7 @@ extern "C" {
 
     static PyMethodDef MCPadPlane_methods[] = {
         {"get_pad_number_from_coordinates", (PyCFunction)MCPadPlane_getPadNumberFromCoordinates, METH_VARARGS,
-         "Get pad number from x and y coordinates."
-        },
+         MCPadPlane_getPadNumberFromCoordinates_doc},
         {NULL}  /* Sentinel */
     };
 
@@ -566,7 +564,7 @@ extern "C" {
         0,                         /* tp_setattro */
         0,                         /* tp_as_buffer */
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
-        "mcopt PadPlane",          /* tp_doc */
+        MCPadPlane_doc,            /* tp_doc */
         0,                         /* tp_traverse */
         0,                         /* tp_clear */
         0,                         /* tp_richcompare */
@@ -700,8 +698,7 @@ extern "C" {
 
     static PyMethodDef MCEventGenerator_methods[] = {
         {"make_event", (PyCFunction)MCEventGenerator_makeEvent, METH_VARARGS,
-         "Generate an event from the tracked particle matrix."
-        },
+         MCEventGenerator_makeEvent_doc},
         {NULL}  /* Sentinel */
     };
 
@@ -726,7 +723,7 @@ extern "C" {
         0,                         /* tp_setattro */
         0,                         /* tp_as_buffer */
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
-        "mcopt PadPlane",          /* tp_doc */
+        MCEventGenerator_doc,      /* tp_doc */
         0,                         /* tp_traverse */
         0,                         /* tp_clear */
         0,                         /* tp_richcompare */
