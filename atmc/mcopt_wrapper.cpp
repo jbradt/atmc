@@ -46,6 +46,16 @@ private:
     std::string msg = "The matrix was not contiguous";
 };
 
+class ArrayIsView : public std::exception
+{
+public:
+    ArrayIsView() {}
+    const char* what() const noexcept { return msg.c_str(); }
+
+private:
+    std::string msg = "An array was given that does not own it's data (it is a view). Please make a copy first.";
+};
+
 static std::vector<double> convertPyArrayToVector(PyArrayObject* pyarr)
 {
     int ndim = PyArray_NDIM(pyarr);
@@ -73,12 +83,12 @@ static const std::vector<npy_intp> getPyArrayDimensions(PyArrayObject* pyarr)
 static bool checkPyArrayDimensions(PyArrayObject* pyarr, const npy_intp dim0, const npy_intp dim1)
 {
     const auto dims = getPyArrayDimensions(pyarr);
-    assert(dims.size() <= 2 and dims.size() > 0);
+    assert(dims.size() <= 2 && dims.size() > 0);
     if (dims.size() == 1) {
-        return (dims[0] == dim0) and (dim1 == 1);
+        return (dims[0] == dim0 || dim0 == -1) && (dim1 == 1);
     }
     else {
-        return (dims[0] == dim0 or dim0 == -1) and (dims[1] == dim1 or dim1 == -1);
+        return (dims[0] == dim0 || dim0 == -1) && (dims[1] == dim1 || dim1 == -1);
     }
 }
 
@@ -230,6 +240,11 @@ extern "C" {
         return result;
     }
 
+    static mcopt::Tracker* MCTracker_getObjPointer(MCTracker* self)
+    {
+        return self->tracker;
+    }
+
     static PyMethodDef MCTracker_methods[] = {
         {"track_particle", (PyCFunction)MCTracker_trackParticle, METH_VARARGS, MCTracker_trackParticle_doc},
         {NULL}  /* Sentinel */
@@ -277,194 +292,6 @@ extern "C" {
     };
 
     // ---------------------------------------------------------------------------------------------------------------
-
-    typedef struct MCMCminimizer {
-        PyObject_HEAD
-        mcopt::MCminimizer* minimizer = NULL;
-    } MCMCminimizer;
-
-    static int MCMCminimizer_init(MCMCminimizer* self, PyObject* args, PyObject* kwargs)
-    {
-        unsigned massNum, chargeNum;
-        PyArrayObject* elossArray = NULL;
-        double efield[3], bfield[3];
-        double ioniz;
-
-        char* kwlist[] = {"mass_num", "charge_num", "eloss", "efield", "bfield", "ioniz", NULL};
-
-        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "IIO!(ddd)(ddd)d", kwlist,
-                                         &massNum, &chargeNum, &PyArray_Type, &elossArray,
-                                         &efield[0], &efield[1], &efield[2],
-                                         &bfield[0], &bfield[1], &bfield[2], &ioniz)) {
-            return -1;
-        }
-
-        std::vector<double> eloss;
-        try {
-            eloss = convertPyArrayToVector(elossArray);
-        }
-        catch (std::exception& err) {
-            PyErr_SetString(PyExc_ValueError, err.what());
-            return -1;
-        }
-
-        if (self->minimizer != NULL) {
-            delete self->minimizer;
-            self->minimizer = NULL;
-        }
-
-        self->minimizer = new mcopt::MCminimizer(mcopt::Tracker(massNum, chargeNum, eloss,
-                                                                arma::vec(efield, 3), arma::vec(bfield, 3)));
-        return 0;
-    }
-
-    static void MCMCminimizer_dealloc(MCMCminimizer* self)
-    {
-        if (self->minimizer != NULL) {
-            delete self->minimizer;
-            self->minimizer = NULL;
-        }
-    }
-
-    static PyObject* MCMCminimizer_minimize(MCMCminimizer* self, PyObject* args, PyObject* kwargs)
-    {
-        PyArrayObject* ctr0Arr = NULL;
-        PyArrayObject* sig0Arr = NULL;
-        PyArrayObject* trueValuesArr = NULL;
-        unsigned numIters = 10;
-        unsigned numPts = 200;
-        double redFactor = 0.8;
-        bool details = false;
-
-        char* kwlist[] = {"ctr0", "sig0", "true_values", "num_iters", "num_pts", "red_factor", "details", NULL};
-
-        if (self->minimizer == NULL) {
-            PyErr_SetString(PyExc_RuntimeError, "The internal mcopt::MCminimizer object was NULL.");
-            return NULL;
-        }
-        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!O!|IIdp", kwlist,
-                                         &PyArray_Type, &ctr0Arr, &PyArray_Type, &sig0Arr,
-                                         &PyArray_Type, &trueValuesArr, &numIters, &numPts,
-                                         &redFactor, &details)) {
-            return NULL;
-        }
-
-        arma::vec ctr0, sig0;
-        arma::mat trueValues;
-        try {
-            ctr0 = convertPyArrayToArma<double>(ctr0Arr, 7, 1);
-            sig0 = convertPyArrayToArma<double>(sig0Arr, 7, 1);
-            trueValues = convertPyArrayToArma<double>(trueValuesArr, -1, 4);
-        }
-        catch (std::exception& err) {
-            PyErr_SetString(PyExc_ValueError, err.what());
-            return NULL;
-        }
-
-        arma::vec ctr;
-        arma::mat allParams;
-        arma::vec minChis;
-        arma::vec goodParamIdx;
-        try {
-            std::tie(ctr, allParams, minChis, goodParamIdx) =
-                self->minimizer->minimize(ctr0, sig0, trueValues, numIters, numPts, redFactor);
-        }
-        catch (std::exception& err) {
-            PyErr_SetString(PyExc_RuntimeError, err.what());
-            return NULL;
-        }
-
-        PyObject* ctrArr = NULL;
-        try {
-            ctrArr = convertArmaToPyArray(ctr);
-        }
-        catch (const std::bad_alloc&) {
-            PyErr_NoMemory();
-            return NULL;
-        }
-
-        if (details) {
-            PyObject* allParamsArr = NULL;
-            PyObject* minChisArr = NULL;
-            PyObject* goodParamIdxArr = NULL;
-
-            try {
-                allParamsArr = convertArmaToPyArray(allParams);
-                minChisArr = convertArmaToPyArray(minChis);
-                goodParamIdxArr = convertArmaToPyArray(goodParamIdx);
-            }
-            catch (const std::bad_alloc&) {
-                Py_DECREF(ctrArr);
-                Py_XDECREF(allParamsArr);
-                Py_XDECREF(minChisArr);
-                Py_XDECREF(goodParamIdxArr);
-
-                PyErr_NoMemory();
-                return NULL;
-            }
-
-            PyObject* result = Py_BuildValue("OOOO", ctrArr, minChisArr, allParamsArr, goodParamIdxArr);
-            Py_DECREF(ctrArr);
-            Py_DECREF(allParamsArr);
-            Py_DECREF(minChisArr);
-            Py_DECREF(goodParamIdxArr);
-            return result;
-        }
-        else {
-            double lastChi = minChis(minChis.n_rows-1);
-            PyObject* result = Py_BuildValue("Od", ctrArr, lastChi);
-            Py_DECREF(ctrArr);
-            return result;
-        }
-    }
-
-    static PyMethodDef MCMCminimizer_methods[] = {
-        {"minimize", (PyCFunction)MCMCminimizer_minimize, METH_VARARGS | METH_KEYWORDS, MCMCminimizer_minimize_doc},
-        {NULL}  /* Sentinel */
-    };
-
-    static PyTypeObject MCMCminimizerType = {
-        PyVarObject_HEAD_INIT(NULL, 0)
-        "mcopt_wrapper.Minimizer", /* tp_name */
-        sizeof(MCMCminimizer),     /* tp_basicsize */
-        0,                         /* tp_itemsize */
-        (destructor)MCMCminimizer_dealloc, /* tp_dealloc */
-        0,                         /* tp_print */
-        0,                         /* tp_getattr */
-        0,                         /* tp_setattr */
-        0,                         /* tp_reserved */
-        0,                         /* tp_repr */
-        0,                         /* tp_as_number */
-        0,                         /* tp_as_sequence */
-        0,                         /* tp_as_mapping */
-        0,                         /* tp_hash  */
-        0,                         /* tp_call */
-        0,                         /* tp_str */
-        0,                         /* tp_getattro */
-        0,                         /* tp_setattro */
-        0,                         /* tp_as_buffer */
-        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
-        MCMCminimizer_doc,         /* tp_doc */
-        0,                         /* tp_traverse */
-        0,                         /* tp_clear */
-        0,                         /* tp_richcompare */
-        0,                         /* tp_weaklistoffset */
-        0,                         /* tp_iter */
-        0,                         /* tp_iternext */
-        MCMCminimizer_methods,     /* tp_methods */
-        0,                         /* tp_members */
-        0,                         /* tp_getset */
-        0,                         /* tp_base */
-        0,                         /* tp_dict */
-        0,                         /* tp_descr_get */
-        0,                         /* tp_descr_set */
-        0,                         /* tp_dictoffset */
-        (initproc)MCMCminimizer_init,  /* tp_init */
-        0,                         /* tp_alloc */
-        0,                         /* tp_new */
-    };
-
-    //  --------------------------------------------------------------------------------------------------------------
 
     typedef struct MCPadPlane {
         PyObject_HEAD
@@ -598,13 +425,15 @@ extern "C" {
         double vd[3], clock, shape;
         unsigned massNum;
         double ioniz;
-        unsigned gain;
+        unsigned gain = 1;
+        double tilt = 0;
+        double beamCtr[3] = {0, 0, 0};
 
-        char* kwlist[] = {"pad_plane", "vd", "clock", "shape", "mass_num", "ioniz", "gain", NULL};
+        char* kwlist[] = {"pad_plane", "vd", "clock", "shape", "mass_num", "ioniz", "gain", "tilt", "beam_center", NULL};
 
-        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!(ddd)ddIdI", kwlist,
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!(ddd)ddId|Id(ddd)", kwlist,
                                          &MCPadPlaneType, &pads, &vd[0], &vd[1], &vd[2], &clock, &shape,
-                                         &massNum, &ioniz, &gain)) {
+                                         &massNum, &ioniz, &gain, &tilt, &beamCtr[0], &beamCtr[1], &beamCtr[2])) {
             return -1;
         }
 
@@ -620,7 +449,8 @@ extern "C" {
 
         mcopt::PadPlane* padObjPtr = MCPadPlane_getObjPointer((MCPadPlane*)(self->padplaneObj));  // Can this be NULL?
 
-        self->evtgen = new mcopt::EventGenerator(*padObjPtr, arma::vec(vd, 3), clock, shape, massNum, ioniz, gain);
+        self->evtgen = new mcopt::EventGenerator(*padObjPtr, arma::vec(vd, 3), clock, shape, massNum, ioniz, gain,
+                                                 tilt, arma::vec(beamCtr, 3));
         return 0;
     }
 
@@ -635,13 +465,15 @@ extern "C" {
 
     static PyObject* MCEventGenerator_makeEvent(MCEventGenerator* self, PyObject* args)
     {
-        PyArrayObject* trArr = NULL;
-        if (!PyArg_ParseTuple(args, "O!", &PyArray_Type, &trArr)) return NULL;
+        PyArrayObject* posArr = NULL;
+        PyArrayObject* enArr = NULL;
+        if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &posArr, &PyArray_Type, &enArr)) return NULL;
 
-        mcopt::Track tr;
+        arma::mat pos;
+        arma::vec en;
         try {
-            arma::mat trMat = convertPyArrayToArma<double>(trArr, -1, 7);
-            tr = convertArmaToTrack(trMat);
+            pos = convertPyArrayToArma<double>(posArr, -1, 3);
+            en = convertPyArrayToArma<double>(enArr, -1, 1);
         }
         catch (const std::exception& err) {
             PyErr_SetString(PyExc_RuntimeError, err.what());
@@ -650,7 +482,7 @@ extern "C" {
 
         std::map<mcopt::pad_t, arma::vec> evt;
         try {
-            evt = self->evtgen->makeEvent(tr);
+            evt = self->evtgen->makeEvent(pos, en);
         }
         catch (const std::exception& err) {
             PyErr_SetString(PyExc_RuntimeError, err.what());
@@ -696,9 +528,48 @@ extern "C" {
         return resDict;
     }
 
+    static PyObject* MCEventGenerator_makeMeshSignal(MCEventGenerator* self, PyObject* args)
+    {
+        PyArrayObject* posArr = NULL;
+        PyArrayObject* enArr = NULL;
+
+        if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &posArr, &PyArray_Type, &enArr)) {
+            return NULL;
+        }
+
+        if (self->evtgen == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "The internal mcopt::EventGenerator object was NULL");
+            return NULL;
+        }
+
+        arma::mat pos;
+        arma::vec en, mesh;
+        PyObject* meshArr = NULL;
+        try {
+            pos = convertPyArrayToArma<double>(posArr, -1, 3);
+            en = convertPyArrayToArma<double>(enArr, -1, 1);
+
+            mesh = self->evtgen->makeMeshSignal(pos, en);
+
+            meshArr = convertArmaToPyArray(mesh);
+        }
+        catch (const std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            Py_XDECREF(meshArr);
+            return NULL;
+        }
+
+        return meshArr;
+    }
+
+    static mcopt::EventGenerator* MCEventGenerator_getObjPointer(MCEventGenerator* self)
+    {
+        return self->evtgen;
+    }
+
     static PyMethodDef MCEventGenerator_methods[] = {
-        {"make_event", (PyCFunction)MCEventGenerator_makeEvent, METH_VARARGS,
-         MCEventGenerator_makeEvent_doc},
+        {"make_event", (PyCFunction)MCEventGenerator_makeEvent, METH_VARARGS, MCEventGenerator_makeEvent_doc},
+        {"make_mesh_signal", (PyCFunction)MCEventGenerator_makeMeshSignal, METH_VARARGS, MCEventGenerator_makeMeshSignal_doc},
         {NULL}  /* Sentinel */
     };
 
@@ -745,6 +616,245 @@ extern "C" {
 
     // ---------------------------------------------------------------------------------------------------------------
 
+    typedef struct MCMCminimizer {
+        PyObject_HEAD
+        PyObject* trackerObj = NULL;
+        PyObject* evtgenObj = NULL;
+        mcopt::MCminimizer* minimizer = NULL;
+    } MCMCminimizer;
+
+    static int MCMCminimizer_init(MCMCminimizer* self, PyObject* args, PyObject* kwargs)
+    {
+        PyObject* tracker;
+        PyObject* evtgen;
+        char* kwlist[] = {"tracker", "event_generator", NULL};
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!", kwlist,
+                                         &MCTrackerType, &tracker, &MCEventGeneratorType, &evtgen)) {
+            return -1;
+        }
+
+        mcopt::Tracker* trPtr = MCTracker_getObjPointer((MCTracker*)tracker);
+        if (trPtr == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "The internal mcopt::Tracker pointer of the tracker was NULL");
+            return -1;
+        }
+        mcopt::EventGenerator* egPtr = MCEventGenerator_getObjPointer((MCEventGenerator*)evtgen);
+        if (egPtr == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "The internal mcopt::Tracker pointer of the tracker was NULL");
+            return -1;
+        }
+
+        PyObject* tmp = NULL;
+
+        Py_INCREF(tracker);
+        tmp = self->trackerObj;
+        self->trackerObj = tracker;
+        Py_XDECREF(tmp);
+
+        Py_INCREF(evtgen);
+        tmp = self->evtgenObj;
+        self->evtgenObj = evtgen;
+        Py_XDECREF(tmp);
+
+        tmp = NULL;
+
+        if (self->minimizer != NULL) {
+            delete self->minimizer;
+            self->minimizer = NULL;
+        }
+
+        self->minimizer = new mcopt::MCminimizer(*trPtr, *egPtr);
+
+        return 0;
+    }
+
+    static void MCMCminimizer_dealloc(MCMCminimizer* self)
+    {
+        Py_XDECREF(self->trackerObj);
+        Py_XDECREF(self->evtgenObj);
+        if (self->minimizer != NULL) {
+            delete self->minimizer;
+        }
+    }
+
+    static PyObject* MCMCminimizer_minimize(MCMCminimizer* self, PyObject* args, PyObject* kwargs)
+    {
+        PyArrayObject* ctr0Arr = NULL;
+        PyArrayObject* sig0Arr = NULL;
+        PyArrayObject* expPosArr = NULL;
+        PyArrayObject* expMeshArr = NULL;
+        unsigned numIters = 10;
+        unsigned numPts = 200;
+        double redFactor = 0.8;
+        bool details = false;
+
+        char* kwlist[] = {"ctr0", "sig0", "exp_pos", "exp_mesh", "num_iters", "num_pts", "red_factor", "details", NULL};
+
+        if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O!O!O!O!|IIdp", kwlist,
+                                         &PyArray_Type, &ctr0Arr, &PyArray_Type, &sig0Arr,
+                                         &PyArray_Type, &expPosArr, &PyArray_Type, &expMeshArr,
+                                         &numIters, &numPts, &redFactor, &details)) {
+            return NULL;
+        }
+
+        arma::vec ctr0, sig0, expMesh;
+        arma::mat expPos;
+        try {
+            ctr0 = convertPyArrayToArma<double>(ctr0Arr, 7, 1);
+            sig0 = convertPyArrayToArma<double>(sig0Arr, 7, 1);
+            expPos = convertPyArrayToArma<double>(expPosArr, -1, 3);
+            expMesh = convertPyArrayToArma<double>(expMeshArr, 512, 1);
+        }
+        catch (std::exception& err) {
+            PyErr_SetString(PyExc_ValueError, err.what());
+            return NULL;
+        }
+
+        arma::vec ctr;
+        arma::mat allParams;
+        arma::vec minChis;
+        arma::vec goodParamIdx;
+        try {
+            std::tie(ctr, allParams, minChis, goodParamIdx) =
+                self->minimizer->minimize(ctr0, sig0, expPos, expMesh, numIters, numPts, redFactor);
+        }
+        catch (std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            return NULL;
+        }
+
+        PyObject* ctrArr = NULL;
+        try {
+            ctrArr = convertArmaToPyArray(ctr);
+        }
+        catch (const std::bad_alloc&) {
+            PyErr_NoMemory();
+            return NULL;
+        }
+
+        if (details) {
+            PyObject* allParamsArr = NULL;
+            PyObject* minChisArr = NULL;
+            PyObject* goodParamIdxArr = NULL;
+
+            try {
+                allParamsArr = convertArmaToPyArray(allParams);
+                minChisArr = convertArmaToPyArray(minChis);
+                goodParamIdxArr = convertArmaToPyArray(goodParamIdx);
+            }
+            catch (const std::bad_alloc&) {
+                Py_DECREF(ctrArr);
+                Py_XDECREF(allParamsArr);
+                Py_XDECREF(minChisArr);
+                Py_XDECREF(goodParamIdxArr);
+
+                PyErr_NoMemory();
+                return NULL;
+            }
+
+            PyObject* result = Py_BuildValue("OOOO", ctrArr, minChisArr, allParamsArr, goodParamIdxArr);
+            Py_DECREF(ctrArr);
+            Py_DECREF(allParamsArr);
+            Py_DECREF(minChisArr);
+            Py_DECREF(goodParamIdxArr);
+            return result;
+        }
+        else {
+            double lastChi = minChis(minChis.n_rows-1);
+            PyObject* result = Py_BuildValue("Od", ctrArr, lastChi);
+            Py_DECREF(ctrArr);
+            return result;
+        }
+    }
+
+    static PyObject* MCMCminimizer_findEnergyDeviation(MCMCminimizer* self, PyObject* args)
+    {
+        PyArrayObject* simPosArr = NULL;
+        PyArrayObject* simEnArr = NULL;
+        PyArrayObject* expMeshArr = NULL;
+
+        if (!PyArg_ParseTuple(args, "O!O!O!", &PyArray_Type, &simPosArr, &PyArray_Type, &simEnArr,
+                              &PyArray_Type, &expMeshArr)) {
+            return NULL;
+        }
+
+        if (self->minimizer == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "Internal mcopt::EventGenerator object was NULL.");
+            return NULL;
+        }
+
+        arma::mat simPos;
+        arma::vec simEn, expMesh, devs;
+        PyObject* devsArr = NULL;
+
+        try {
+            simPos = convertPyArrayToArma<double>(simPosArr, -1, 3);
+            simEn = convertPyArrayToArma<double>(simEnArr, -1, 1);
+            expMesh = convertPyArrayToArma<double>(expMeshArr, 512, 1);
+
+            devs = self->minimizer->findEnergyDeviation(simPos, simEn, expMesh);
+
+            devsArr = convertArmaToPyArray(devs);
+        }
+        catch (const std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            Py_XDECREF(devsArr);
+            return NULL;
+        }
+
+        return devsArr;
+    }
+
+    static PyMethodDef MCMCminimizer_methods[] = {
+        {"minimize", (PyCFunction)MCMCminimizer_minimize, METH_VARARGS | METH_KEYWORDS, MCMCminimizer_minimize_doc},
+        {"find_energy_deviation", (PyCFunction)MCMCminimizer_findEnergyDeviation, METH_VARARGS, MCMCminimizer_findEnergyDeviation_doc},
+        {NULL}  /* Sentinel */
+    };
+
+    static PyTypeObject MCMCminimizerType = {
+        PyVarObject_HEAD_INIT(NULL, 0)
+        "mcopt_wrapper.Minimizer", /* tp_name */
+        sizeof(MCMCminimizer),     /* tp_basicsize */
+        0,                         /* tp_itemsize */
+        (destructor)MCMCminimizer_dealloc, /* tp_dealloc */
+        0,                         /* tp_print */
+        0,                         /* tp_getattr */
+        0,                         /* tp_setattr */
+        0,                         /* tp_reserved */
+        0,                         /* tp_repr */
+        0,                         /* tp_as_number */
+        0,                         /* tp_as_sequence */
+        0,                         /* tp_as_mapping */
+        0,                         /* tp_hash  */
+        0,                         /* tp_call */
+        0,                         /* tp_str */
+        0,                         /* tp_getattro */
+        0,                         /* tp_setattro */
+        0,                         /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,    /* tp_flags */
+        MCMCminimizer_doc,         /* tp_doc */
+        0,                         /* tp_traverse */
+        0,                         /* tp_clear */
+        0,                         /* tp_richcompare */
+        0,                         /* tp_weaklistoffset */
+        0,                         /* tp_iter */
+        0,                         /* tp_iternext */
+        MCMCminimizer_methods,     /* tp_methods */
+        0,                         /* tp_members */
+        0,                         /* tp_getset */
+        0,                         /* tp_base */
+        0,                         /* tp_dict */
+        0,                         /* tp_descr_get */
+        0,                         /* tp_descr_set */
+        0,                         /* tp_dictoffset */
+        (initproc)MCMCminimizer_init,  /* tp_init */
+        0,                         /* tp_alloc */
+        0,                         /* tp_new */
+    };
+
+    //  --------------------------------------------------------------------------------------------------------------
+
     static PyObject* mcopt_wrapper_find_deviations(PyObject* self, PyObject* args)
     {
         PyArrayObject* simArr = NULL;
@@ -762,7 +872,7 @@ extern "C" {
             // printf("SimMat has shape (%lld, %lld)", simMat.n_rows, simMat.n_cols);
             // printf("ExpMat has shape (%lld, %lld)", expMat.n_rows, expMat.n_cols);
 
-            arma::mat devs = mcopt::MCminimizer::findDeviations(simMat, expMat);
+            arma::mat devs = mcopt::MCminimizer::findPositionDeviations(simMat, expMat);
 
             devArr = convertArmaToPyArray(devs);
         }

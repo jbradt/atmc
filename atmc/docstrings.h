@@ -101,6 +101,28 @@ const char* MCMCminimizer_minimize_doc =
     "RuntimeError\n"
     "    If tracking fails for some reason.\n";
 
+const char* MCMCminimizer_findEnergyDeviation_doc =
+    "Minimizer.find_energy_deviation(sim_pos, sim_en, exp_mesh)\n"
+    "\n"
+    "Find the deviations between the simulated track's energy and the experimental data.\n"
+    "\n"
+    "Parameters\n"
+    "----------\n"
+    "sim_pos : ndarray\n"
+    "    The simulated track's (x, y, z) positions. The units should be compatible with the\n"
+    "    units of the pad plane object (probably meters).\n"
+    "sim_en : ndarray\n"
+    "    The simulated track's energy values, in MeV/u. This should have the same number of rows\n"
+    "    as sim_pos.\n"
+    "exp_mesh : ndarray\n"
+    "    The simulated track's reconstructed mesh signal. This should have a length of 512 like\n"
+    "    the GET electronics signals.\n"
+    "\n"
+    "Returns\n"
+    "-------\n"
+    "ndarray\n"
+    "    The deviation between the two signals, as seen by the minimizer.\n";
+
 const char* MCPadPlane_doc =
     "PadPlane(lookup_table, x_lower_bound, x_delta, y_lower_bound, y_delta, rot_angle=0)\n"
     "\n"
@@ -185,6 +207,24 @@ const char* MCEventGenerator_makeEvent_doc =
     "------\n"
     "RuntimeError\n"
     "    If the process fails for some reason.\n";
+
+const char* MCEventGenerator_makeMeshSignal_doc =
+    "EventGenerator.make_mesh_signal(pos, en)\n"
+    "\n"
+    "Make the simulated mesh signal, or the total across time buckets of the simulated signals.\n"
+    "\n"
+    "Parameters\n"
+    "----------\n"
+    "pos : ndarray\n"
+    "    The simulated track positions, as (x, y, z) triples. The units should be compatible with the\n"
+    "    pad plane's units (probably meters).\n"
+    "en : ndarray\n"
+    "    The energy of the simulated particle at each time step, in MeV/u.\n"
+    "\n"
+    "Returns\n"
+    "-------\n"
+    "ndarray\n"
+    "    The simulated mesh signal. The shape is (512,).\n";
 
 const char* mcopt_wrapper_find_deviations_docstring =
     "Find the deviations. These can be summed to find chi^2.\n"

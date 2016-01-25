@@ -1,6 +1,6 @@
 import numpy as np
 import atmc.mcopt_wrapper as mcopt
-from atmc.mcopt_wrapper import PadPlane, EventGenerator
+from atmc.mcopt_wrapper import PadPlane, EventGenerator, Minimizer
 
 __all__ = ['Tracker', 'Minimizer', 'PadPlane', 'EventGenerator']
 
@@ -25,11 +25,3 @@ class Tracker(mcopt.Tracker):
         ens = np.arange(0, max_en*1000, dtype='int')
         eloss = gas.energy_loss(ens / 1000, mass_num, charge_num)
         super().__init__(mass_num, charge_num, eloss, efield, bfield)
-
-
-class Minimizer(mcopt.Minimizer):
-
-    def __init__(self, mass_num, charge_num, gas, efield, bfield, ioniz, max_en=100):
-        ens = np.arange(0, max_en*1000, dtype='int')
-        eloss = gas.energy_loss(ens / 1000, mass_num, charge_num)
-        super().__init__(mass_num, charge_num, eloss, efield, bfield, ioniz)
