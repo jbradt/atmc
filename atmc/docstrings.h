@@ -40,24 +40,16 @@ const char* MCTracker_trackParticle_doc =
     "    If tracking fails for some reason.\n";
 
 const char* MCMCminimizer_doc =
-    "Minimizer(mass_num, charge_num, eloss, efield, bfield)\n"
+    "Minimizer(tracker, evtgen)\n"
     "\n"
     "A Monte Carlo minimizer for particle tracks."
     "\n"
     "Parameters\n"
     "----------\n"
-    "massNum, chargeNum : int\n"
-    "    The mass and charge number of the projectile.\n"
-    "eloss : ndarray\n"
-    "    The energy loss for the particle, in MeV/m, as a function of projectile energy.\n"
-    "    This should be indexed in 1-keV steps.\n"
-    "efield, bfield : ndarray\n"
-    "    The electric and magnetic field vectors, in SI units.\n"
-    "\n"
-    "Raises\n"
-    "------\n"
-    "ValueError\n"
-    "    If a provided array has invalid dimensions.\n";
+    "tracker : mcopt.Tracker\n"
+    "    The tracker to use to simulate the tracks.\n"
+    "evtgen : mcopt.EventGenerator\n"
+    "    The event generator to use to do the projection onto the pad plane.\n";
 
 
 const char* MCMCminimizer_minimize_doc =
@@ -225,6 +217,24 @@ const char* MCEventGenerator_makeMeshSignal_doc =
     "-------\n"
     "ndarray\n"
     "    The simulated mesh signal. The shape is (512,).\n";
+
+const char* MCEventGenerator_makePeaks_doc =
+    "EventGenerator.make_peaks(pos, en)\n"
+    "\n"
+    "Make the peaks table (x, y, time_bucket, amplitude, pad_number) from the simulated data.\n"
+    "\n"
+    "Parameters\n"
+    "----------\n"
+    "pos : ndarray\n"
+    "    The simulated (x, y, z) positions. This should be in the same units as the pad plane, which\n"
+    "    is probably in meters.\n"
+    "en : ndarray\n"
+    "    The simulated energies, in MeV/u.\n"
+    "\n"
+    "Returns\n"
+    "-------\n"
+    "ndarray\n"
+    "    The peaks, as described above.\n";
 
 const char* mcopt_wrapper_find_deviations_docstring =
     "Find the deviations. These can be summed to find chi^2.\n"

@@ -562,6 +562,40 @@ extern "C" {
         return meshArr;
     }
 
+    static PyObject* MCEventGenerator_makePeaks(MCEventGenerator* self, PyObject* args)
+    {
+        PyArrayObject* posArr = NULL;
+        PyArrayObject* enArr = NULL;
+
+        if (!PyArg_ParseTuple(args, "O!O!", &PyArray_Type, &posArr, &PyArray_Type, &enArr)) {
+            return NULL;
+        }
+
+        if (self->evtgen == NULL) {
+            PyErr_SetString(PyExc_RuntimeError, "The internal mcopt::EventGenerator object was NULL");
+            return NULL;
+        }
+
+        arma::mat pos, peaks;
+        arma::vec en;
+        PyObject* peaksArr = NULL;
+        try {
+            pos = convertPyArrayToArma<double>(posArr, -1, 3);
+            en = convertPyArrayToArma<double>(enArr, -1, 1);
+
+            peaks = self->evtgen->makePeaksTableFromSimulation(pos, en);
+
+            peaksArr = convertArmaToPyArray(peaks);
+        }
+        catch (const std::exception& err) {
+            PyErr_SetString(PyExc_RuntimeError, err.what());
+            Py_XDECREF(peaksArr);
+            return NULL;
+        }
+
+        return peaksArr;
+    }
+
     static mcopt::EventGenerator* MCEventGenerator_getObjPointer(MCEventGenerator* self)
     {
         return self->evtgen;
@@ -570,6 +604,7 @@ extern "C" {
     static PyMethodDef MCEventGenerator_methods[] = {
         {"make_event", (PyCFunction)MCEventGenerator_makeEvent, METH_VARARGS, MCEventGenerator_makeEvent_doc},
         {"make_mesh_signal", (PyCFunction)MCEventGenerator_makeMeshSignal, METH_VARARGS, MCEventGenerator_makeMeshSignal_doc},
+        {"make_peaks", (PyCFunction)MCEventGenerator_makePeaks, METH_VARARGS, MCEventGenerator_makePeaks_doc},
         {NULL}  /* Sentinel */
     };
 
