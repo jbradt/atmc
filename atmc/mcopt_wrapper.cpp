@@ -449,7 +449,7 @@ extern "C" {
 
         mcopt::PadPlane* padObjPtr = MCPadPlane_getObjPointer((MCPadPlane*)(self->padplaneObj));  // Can this be NULL?
 
-        self->evtgen = new mcopt::EventGenerator(*padObjPtr, arma::vec(vd, 3), clock, shape, massNum, ioniz, gain,
+        self->evtgen = new mcopt::EventGenerator(*padObjPtr, arma::vec(vd, 3), clock * 1e6, shape, massNum, ioniz, gain,
                                                  tilt, arma::vec(beamCtr, 3));
         return 0;
     }

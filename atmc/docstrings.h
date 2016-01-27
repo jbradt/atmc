@@ -169,7 +169,7 @@ const char* MCEventGenerator_doc =
     "vd : array-like\n"
     "    The drift velocity vector, in cm/us.\n"
     "clock : float\n"
-    "    The write clock, in Hz.\n"
+    "    The write clock, in MHz.\n"
     "shape : float\n"
     "    The shaping time, in seconds.\n"
     "mass_num : int\n"
