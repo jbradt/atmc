@@ -746,13 +746,9 @@ extern "C" {
             return NULL;
         }
 
-        arma::vec ctr;
-        arma::mat allParams;
-        arma::vec minChis;
-        arma::vec goodParamIdx;
+        mcopt::MCminimizeResult minres;
         try {
-            std::tie(ctr, allParams, minChis, goodParamIdx) =
-                self->minimizer->minimize(ctr0, sig0, expPos, expMesh, numIters, numPts, redFactor);
+            minres = self->minimizer->minimize(ctr0, sig0, expPos, expMesh, numIters, numPts, redFactor);
         }
         catch (std::exception& err) {
             PyErr_SetString(PyExc_RuntimeError, err.what());
@@ -761,7 +757,7 @@ extern "C" {
 
         PyObject* ctrArr = NULL;
         try {
-            ctrArr = convertArmaToPyArray(ctr);
+            ctrArr = convertArmaToPyArray(minres.ctr);
         }
         catch (const std::bad_alloc&) {
             PyErr_NoMemory();
@@ -770,34 +766,39 @@ extern "C" {
 
         if (details) {
             PyObject* allParamsArr = NULL;
-            PyObject* minChisArr = NULL;
+            PyObject* minPosChisArr = NULL;
+            PyObject* minEnChisArr = NULL;
             PyObject* goodParamIdxArr = NULL;
 
             try {
-                allParamsArr = convertArmaToPyArray(allParams);
-                minChisArr = convertArmaToPyArray(minChis);
-                goodParamIdxArr = convertArmaToPyArray(goodParamIdx);
+                allParamsArr = convertArmaToPyArray(minres.allParams);
+                minPosChisArr = convertArmaToPyArray(minres.minPosChis);
+                minEnChisArr = convertArmaToPyArray(minres.minEnChis);
+                goodParamIdxArr = convertArmaToPyArray(minres.goodParamIdx);
             }
             catch (const std::bad_alloc&) {
                 Py_DECREF(ctrArr);
                 Py_XDECREF(allParamsArr);
-                Py_XDECREF(minChisArr);
+                Py_XDECREF(minPosChisArr);
+                Py_XDECREF(minEnChisArr);
                 Py_XDECREF(goodParamIdxArr);
 
                 PyErr_NoMemory();
                 return NULL;
             }
 
-            PyObject* result = Py_BuildValue("OOOO", ctrArr, minChisArr, allParamsArr, goodParamIdxArr);
+            PyObject* result = Py_BuildValue("OOOOO", ctrArr, minPosChisArr, minEnChisArr, allParamsArr, goodParamIdxArr);
             Py_DECREF(ctrArr);
             Py_DECREF(allParamsArr);
-            Py_DECREF(minChisArr);
+            Py_DECREF(minPosChisArr);
+            Py_DECREF(minEnChisArr);
             Py_DECREF(goodParamIdxArr);
             return result;
         }
         else {
-            double lastChi = minChis(minChis.n_rows-1);
-            PyObject* result = Py_BuildValue("Od", ctrArr, lastChi);
+            double lastPosChi = minres.minPosChis(minres.minPosChis.n_rows-1);
+            double lastEnChi = minres.minEnChis(minres.minEnChis.n_rows-1);
+            PyObject* result = Py_BuildValue("Odd", ctrArr, lastPosChi, lastEnChi);
             Py_DECREF(ctrArr);
             return result;
         }
