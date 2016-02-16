@@ -9,7 +9,7 @@ extern "C" {
     #include <numpy/arrayobject.h>
     #include "docstrings.h"
 }
-#include "mcopt.h"
+#include <mcopt/mcopt.h>
 #include <exception>
 #include <cassert>
 #include <string>
