@@ -16,7 +16,6 @@ cdef Mat[unsigned short] * np2uint16mat(np.ndarray[np.uint16_t, ndim=2] arr):
     cdef Mat[unsigned short]* armaArr = new Mat[unsigned short](&arrView[0, 0], arr.shape[0], arr.shape[1], False, True)
     return armaArr
 
-
 cdef vec * np2vec(np.ndarray[np.double_t, ndim=1] arr):
     if not (arr.flags.f_contiguous or arr.flags.owndata):
         arr = arr.copy()

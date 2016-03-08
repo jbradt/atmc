@@ -13,8 +13,8 @@ cdef extern from "armadillo" namespace "arma":
         double operator()(int, int)
 
     cdef cppclass Mat[T]:
-        Mat(double * aux_mem, int n_rows, int n_cols, bint copy_aux_mem, bint strict) except +
-        Mat(double * aux_mem, int n_rows, int n_cols) except +
+        Mat(T* aux_mem, int n_rows, int n_cols, bint copy_aux_mem, bint strict) except +
+        Mat(T* aux_mem, int n_rows, int n_cols) except +
         Mat(int n_rows, int n_cols) except +
         Mat() except +
         int n_rows
