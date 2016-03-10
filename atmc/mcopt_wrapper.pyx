@@ -55,6 +55,28 @@ cdef class Tracker:
     def __dealloc__(self):
         del self.thisptr
 
+    property mass_num:
+        """The mass number of the tracked particle."""
+        def __get__(self):
+            return self.thisptr.getMassNum()
+
+    property charge_num:
+        """The charge number of the tracked particle."""
+        def __get__(self):
+            return self.thisptr.getChargeNum()
+
+    property efield:
+        """The electric field in the detector, in V/m."""
+        def __get__(self):
+            cdef arma.vec efieldVec = self.thisptr.getEfield()
+            return arma.vec2np(efieldVec)
+
+    property bfield:
+        """The magnetic field in the detector, in Tesla."""
+        def __get__(self):
+            cdef arma.vec bfieldVec = self.thisptr.getBfield()
+            return arma.vec2np(bfieldVec)
+
     def track_particle(self, double x0, double y0, double z0, double enu0, double azi0, double pol0):
         """Tracker.track_particle(x0, y0, z0, enu0, azi0, pol0)
 
@@ -176,6 +198,81 @@ cdef class EventGenerator:
 
     def __dealloc__(self):
         del self.thisptr
+
+    property mass_num:
+        """The mass number of the tracked particle."""
+        def __get__(self):
+            return self.thisptr.massNum
+
+        def __set__(self, newval):
+            self.thisptr.massNum = newval
+
+    property ioniz:
+        """The ionization potential of the gas, in eV."""
+        def __get__(self):
+            return self.thisptr.ioniz
+
+        def __set__(self, newval):
+            self.thisptr.ioniz = newval
+
+    property gain:
+        """The micromegas gain."""
+        def __get__(self):
+            return self.thisptr.gain
+
+        def __set__(self, newval):
+            self.thisptr.gain = newval
+
+    property tilt:
+        """The detector tilt angle, in radians."""
+        def __get__(self):
+            return self.thisptr.tilt
+
+        def __set__(self, newval):
+            self.thisptr.tilt = newval
+
+    property clock:
+        """The CoBo write clock frequency, in MHz."""
+        def __get__(self):
+            return self.thisptr.getClock()
+
+        def __set__(self, double newval):
+             self.thisptr.setClock(newval)
+
+    property shape:
+        """The shaping time in the electronics, in seconds."""
+        def __get__(self):
+            return self.thisptr.getShape()
+
+        def __set__(self, double newval):
+            self.thisptr.setShape(newval)
+
+    property vd:
+        """The 3D drift velocity vector, in cm/µs."""
+        def __get__(self):
+            return arma.vec2np(self.thisptr.vd)
+
+        def __set__(self, newval):
+            cdef arma.vec *vdVec
+            try:
+                vdVec = arma.np2vec(newval)
+                self.thisptr.vd = deref(vdVec)
+            finally:
+                del vdVec
+
+    property beam_ctr:
+        """A vector used to re-center the beam in the chamber after the calibration and un-tilting
+        transformations. It should have units of meters."""
+        def __get__(self):
+            return arma.vec2np(self.thisptr.beamCtr)
+
+        def __set__(self, newval):
+            cdef arma.vec *beamCtrVec
+            try:
+                beamCtrVec = arma.np2vec(newval)
+                self.thisptr.beamCtr = deref(beamCtrVec)
+            finally:
+                del beamCtrVec
 
     def make_event(self, np.ndarray[np.double_t, ndim=2] pos, np.ndarray[np.double_t, ndim=1] en):
         """Make the electronics signals from the given track matrix.
