@@ -21,7 +21,7 @@ class Tracker(mcopt.Tracker):
         table for the tracker.
     """
 
-    def __init__(self, mass_num, charge_num, gas, efield, bfield, max_en=100):
+    def __new__(cls, mass_num, charge_num, gas, efield, bfield, max_en=100):
         ens = np.arange(0, max_en*1000, dtype='int')
         eloss = gas.energy_loss(ens / 1000, mass_num, charge_num)
-        super().__init__(mass_num, charge_num, eloss, efield, bfield)
+        return super().__new__(cls, mass_num, charge_num, eloss, efield, bfield)

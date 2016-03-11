@@ -19,7 +19,7 @@ cdef extern from "armadillo" namespace "arma":
         Mat() except +
         int n_rows
         int n_cols
-        double* memptr()
+        T* memptr()
         double operator()(int, int)
 
     cdef cppclass vec:
@@ -35,4 +35,4 @@ cdef mat * np2mat(np.ndarray[np.double_t, ndim=2] arr)
 cdef Mat[unsigned short] * np2uint16mat(np.ndarray[np.uint16_t, ndim=2] arr)
 cdef vec * np2vec(np.ndarray[np.double_t, ndim=1] arr)
 cdef np.ndarray[np.double_t, ndim=2] mat2np(const mat & armaArr)
-cdef np.ndarray[np.double_t, ndim=2] vec2np(const vec & armaArr)
+cdef np.ndarray[np.double_t, ndim=1] vec2np(const vec & armaArr)

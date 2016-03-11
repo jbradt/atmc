@@ -191,8 +191,8 @@ cdef class EventGenerator:
         try:
             vdVec = arma.np2vec(vd)
             beamCtrVec = arma.np2vec(beamCtr)
-            self.thisptr = new mcopt.EventGenerator(deref(pads.thisptr), deref(vdVec), clock, shape, massNum, ioniz, gain,
-                                              tilt, deref(beamCtrVec))
+            self.thisptr = new mcopt.EventGenerator(deref(pads.thisptr), deref(vdVec), clock * 1e6, shape, massNum,
+                                                    ioniz, gain, tilt, deref(beamCtrVec))
         finally:
             del vdVec, beamCtrVec
 
@@ -234,10 +234,10 @@ cdef class EventGenerator:
     property clock:
         """The CoBo write clock frequency, in MHz."""
         def __get__(self):
-            return self.thisptr.getClock()
+            return self.thisptr.getClock() * 1e-6
 
         def __set__(self, double newval):
-             self.thisptr.setClock(newval)
+             self.thisptr.setClock(newval * 1e6)
 
     property shape:
         """The shaping time in the electronics, in seconds."""
@@ -364,7 +364,7 @@ cdef class EventGenerator:
         cdef arma.mat *posMat
         cdef arma.vec *enVec
         cdef arma.vec mesh
-        cdef np.ndarray[np.double_t, ndim=2] res
+        cdef np.ndarray[np.double_t, ndim=1] res
         try:
             posMat = arma.np2mat(pos)
             enVec = arma.np2vec(en)
@@ -396,7 +396,7 @@ cdef class Minimizer:
 
     def minimize(self, np.ndarray[np.double_t, ndim=1] ctr0, np.ndarray[np.double_t, ndim=1] sigma0,
                  np.ndarray[np.double_t, ndim=2] expPos, np.ndarray[np.double_t, ndim=1] expMesh,
-                 unsigned numIters=10, unsigned numPts=200, double redFactor=0.8):
+                 unsigned numIters=10, unsigned numPts=200, double redFactor=0.8, bint details=False):
         """Perform chi^2 minimization for the track.
 
         Parameters
@@ -454,12 +454,26 @@ cdef class Minimizer:
             del ctr0Arr, sigma0Arr, expPosArr, expMeshArr
 
         cdef np.ndarray[np.double_t, ndim=1] ctr = arma.vec2np(minres.ctr)
-        cdef np.ndarray[np.double_t, ndim=2] allParams = arma.mat2np(minres.allParams)
-        cdef np.ndarray[np.double_t, ndim=1] minPosChis = arma.vec2np(minres.minPosChis)
-        cdef np.ndarray[np.double_t, ndim=1] minEnChis = arma.vec2np(minres.minEnChis)
-        cdef np.ndarray[np.double_t, ndim=1] goodParamIdx = arma.vec2np(minres.goodParamIdx)
 
-        return ctr, allParams, minPosChis, minEnChis, goodParamIdx
+        cdef np.ndarray[np.double_t, ndim=2] allParams
+        cdef np.ndarray[np.double_t, ndim=1] minPosChis
+        cdef np.ndarray[np.double_t, ndim=1] minEnChis
+        cdef np.ndarray[np.double_t, ndim=1] goodParamIdx
+
+        cdef double lastPosChi
+        cdef double lastEnChi
+
+        if details:
+            allParams = arma.mat2np(minres.allParams)
+            minPosChis = arma.vec2np(minres.minPosChis)
+            minEnChis = arma.vec2np(minres.minEnChis)
+            goodParamIdx = arma.vec2np(minres.goodParamIdx)
+            return ctr, minPosChis, minEnChis, allParams, goodParamIdx
+
+        else:
+            lastPosChi = minres.minPosChis(minres.minPosChis.n_elem - 1)
+            lastEnChi = minres.minEnChis(minres.minEnChis.n_elem - 1)
+            return ctr, lastPosChi, lastEnChi
 
     def find_position_deviations(self, np.ndarray[np.double_t, ndim=2] simArr, np.ndarray[np.double_t, ndim=2] expArr):
         """Find the deviations in position between two tracks.
