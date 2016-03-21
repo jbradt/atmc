@@ -29,6 +29,8 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         PadPlane(const arma.Mat[pad_t]& lt, const double xLB, const double xDelta,
                  const double yLB, const double yDelta, const double rotAngle) except+
         pad_t getPadNumberFromCoordinates(const double x, const double y) except+
+        @staticmethod
+        cppvec[cppvec[cppvec[double]]] generatePadCoordinates(const double rotation_angle)
 
 
     cdef cppclass EventGenerator:
@@ -39,6 +41,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         cppmap[pad_t, arma.vec] makeEvent(const arma.mat& pos, const arma.vec& en) except+
         arma.mat makePeaksTableFromSimulation(const arma.mat& pos, const arma.vec& en) except+
         arma.vec makeMeshSignal(const arma.mat& pos, const arma.vec& en) except+
+        arma.vec makeHitPattern(const arma.mat& pos, const arma.vec& en) except+
 
         double getClock()
         void setClock(const double c)
@@ -69,6 +72,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
                             const arma.vec& mins, const arma.vec& maxes) except+
         arma.mat findPositionDeviations(const arma.mat& simPos, const arma.mat& expPos) except+
         arma.vec findEnergyDeviation(const arma.mat& simPos, const arma.vec& simEn, const arma.vec& expMesh) except+
+        arma.vec findHitPatternDeviation(const arma.mat& simPos, const arma.vec& simEn, const arma.vec& expHits) except+
         MCminimizeResult minimize(const arma.vec& ctr0, const arma.vec& sigma0, const arma.mat& expPos,
                                   const arma.vec& expMesh, const unsigned numIters, const unsigned numPts,
                                   const double redFactor) except+

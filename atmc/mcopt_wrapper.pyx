@@ -158,6 +158,21 @@ cdef class PadPlane:
         """
         return self.thisptr.getPadNumberFromCoordinates(x, y)
 
+    @staticmethod
+    def generate_pad_coordinates(double rotation_angle):
+        cdef cppvec[cppvec[cppvec[double]]] v = mcopt.PadPlane.generatePadCoordinates(rotation_angle)
+        cdef size_t dim0 = v.size()
+        cdef size_t dim1 = v[0].size()
+        cdef size_t dim2 = v[0][0].size()
+        cdef np.ndarray[np.double_t, ndim=3] a = np.empty((dim0, dim1, dim2), dtype=np.double)
+
+        for i in range(dim0):
+            for j in range(dim1):
+                for k in range(dim2):
+                    a[i, j, k] = v[i][j][k]
+
+        return a
+
 
 cdef class EventGenerator:
     """A GET event generator. This can be used to generate events from simulated tracks.
@@ -375,6 +390,38 @@ cdef class EventGenerator:
 
         return res
 
+    def make_hit_pattern(self, np.ndarray[np.double_t, ndim=2] pos, np.ndarray[np.double_t, ndim=1] en):
+        """Make the simulated hit pattern from an event.
+
+        This integrates the signal recorded on each pad and returns an array of the result for each pad.
+
+        Parameters
+        ----------
+        pos : ndarray
+            The simulated track positions, as (x, y, z) triples. The units should be compatible with the
+            pad plane's units (probably meters).
+        en : ndarray
+            The energy of the simulated particle at each time step, in MeV/u.
+
+        Returns
+        -------
+        ndarray
+            The hit pattern, indexed by pad number.
+        """
+        cdef arma.mat *posMat
+        cdef arma.vec *enVec
+        cdef arma.vec mesh
+        cdef np.ndarray[np.double_t, ndim=1] res
+        try:
+            posMat = arma.np2mat(pos)
+            enVec = arma.np2vec(en)
+            mesh = self.thisptr.makeHitPattern(deref(posMat), deref(enVec))
+            res = arma.vec2np(mesh)
+        finally:
+            del posMat, enVec
+
+        return res
+
 
 cdef class Minimizer:
     """A Monte Carlo minimizer for particle tracks
@@ -545,3 +592,42 @@ cdef class Minimizer:
             del simPosMat, simEnVec, expMeshVec
 
         return enDev
+
+    def find_hit_pattern_deviation(self, np.ndarray[np.double_t, ndim=2] simPos, np.ndarray[np.double_t, ndim=1] simEn,
+                                   np.ndarray[np.double_t, ndim=1] expHits):
+        """Find the deviations between the simulated track's hit pattern and the experimental hit pattern.
+
+        Parameters
+        ----------
+        simPos : ndarray
+            The simulated track's (x, y, z) positions. The units should be compatible with the
+            units of the pad plane object (probably meters).
+        simEn : ndarray
+            The simulated track's energy values, in MeV/u. This should have the same number of rows
+            as sim_pos.
+        expHits : ndarray
+            The simulated track's hit pattern, indexed by pad number.
+
+        Returns
+        -------
+        ndarray
+            The deviation between the two hit patterns, as seen by the minimizer.
+        """
+        cdef arma.mat *simPosMat
+        cdef arma.vec *simEnVec
+        cdef arma.vec *expHitsVec
+        cdef arma.vec hitsDevVec
+        cdef np.ndarray[np.double_t, ndim=1] hitsDev
+
+        try:
+            simPosMat = arma.np2mat(simPos)
+            simEnVec = arma.np2vec(simEn)
+            expHitsVec = arma.np2vec(expHits)
+
+            hitsDevVec = self.thisptr.findHitPatternDeviation(deref(simPosMat), deref(simEnVec), deref(expHitsVec))
+            hitsDev = arma.vec2np(hitsDevVec)
+
+        finally:
+            del simPosMat, simEnVec, expHitsVec
+
+        return hitsDev
