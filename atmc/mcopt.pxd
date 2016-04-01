@@ -65,6 +65,12 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         arma.vec goodParamIdx
 
 
+    cdef cppclass Chi2Set:
+        Chi2Set() except+
+        double posChi2
+        double enChi2
+
+
     cdef cppclass MCminimizer:
         MCminimizer(const Tracker& tracker, const EventGenerator& evtgen) except+
 
@@ -76,3 +82,4 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         MCminimizeResult minimize(const arma.vec& ctr0, const arma.vec& sigma0, const arma.mat& expPos,
                                   const arma.vec& expMesh, const unsigned numIters, const unsigned numPts,
                                   const double redFactor) except+
+        Chi2Set runTrack(const arma.vec& params, const arma.mat& expPos, const arma.vec& expHits) except+

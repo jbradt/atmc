@@ -631,3 +631,23 @@ cdef class Minimizer:
             del simPosMat, simEnVec, expHitsVec
 
         return hitsDev
+
+    def run_track(self, np.ndarray[np.double_t, ndim=1] params, np.ndarray[np.double_t, ndim=2] expPos,
+                  np.ndarray[np.double_t, ndim=1] expHits):
+        cdef arma.vec *paramsVec
+        cdef arma.mat *expPosMat
+        cdef arma.vec *expHitsVec
+
+        cdef mcopt.Chi2Set chiset
+
+        try:
+            paramsVec = arma.np2vec(params)
+            expPosMat = arma.np2mat(expPos)
+            expHitsVec = arma.np2vec(expHits)
+
+            chiset = self.thisptr.runTrack(deref(paramsVec), deref(expPosMat), deref(expHitsVec))
+
+        finally:
+            del paramsVec, expPosMat, expHitsVec
+
+        return chiset.posChi2, chiset.enChi2
