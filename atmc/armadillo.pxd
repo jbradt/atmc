@@ -10,7 +10,8 @@ cdef extern from "armadillo" namespace "arma":
         int n_rows
         int n_cols
         double* memptr()
-        double operator()(int, int)
+        double& operator()(int, int)
+        void set_size(int size) except +
 
     cdef cppclass Mat[T]:
         Mat(T* aux_mem, int n_rows, int n_cols, bint copy_aux_mem, bint strict) except +
@@ -20,7 +21,8 @@ cdef extern from "armadillo" namespace "arma":
         int n_rows
         int n_cols
         T* memptr()
-        double operator()(int, int)
+        double& operator()(int, int)
+        void set_size(int size) except +
 
     cdef cppclass vec:
         vec(double * aux_mem, int n_elem, bint copy_aux_mem, bint strict) except +
@@ -29,7 +31,8 @@ cdef extern from "armadillo" namespace "arma":
         vec() except +
         int n_elem
         double* memptr()
-        double operator()(int)
+        double& operator()(int)
+        void set_size(int size) except +
 
 cdef mat * np2mat(np.ndarray[np.double_t, ndim=2] arr)
 cdef Mat[unsigned short] * np2uint16mat(np.ndarray[np.uint16_t, ndim=2] arr)

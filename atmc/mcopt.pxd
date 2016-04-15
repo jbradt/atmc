@@ -83,3 +83,4 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
                                   const arma.vec& expMesh, const unsigned numIters, const unsigned numPts,
                                   const double redFactor) except+
         Chi2Set runTrack(const arma.vec& params, const arma.mat& expPos, const arma.vec& expHits) except+
+        arma.mat runTracks(const arma.mat& params, const arma.mat& expPos, const arma.vec& expHits) except+
