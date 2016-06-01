@@ -6,6 +6,12 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
     ctypedef unsigned short pad_t
 
 
+    cdef cppclass Gas:
+        Gas(const cppvec[double]& eloss, const cppvec[double]& enVsZ) except+
+        double energyLoss(const double energy) except+
+        double energyFromVertexZPosition(const double z) except+
+
+
     cdef cppclass Track:
         Track() except+
         arma.mat getMatrix() except+
@@ -15,7 +21,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
 
 
     cdef cppclass Tracker:
-        Tracker(unsigned massNum, unsigned chargeNum, cppvec[double]& eloss,
+        Tracker(unsigned massNum, unsigned chargeNum, Gas gas,
                 arma.vec& efield, arma.vec& bfield) except+
         Track trackParticle(const double x0, const double y0, const double z0,
                             const double enu0,  const double azi0, const double pol0) except+

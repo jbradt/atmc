@@ -17,8 +17,35 @@ cdef cppvec[double] np2cppvec(np.ndarray[np.double_t, ndim=1] v):
     return res
 
 
+cdef class Gas:
+    """Gas(eloss, enVsZ)
+
+    Container for gas data in the C++ code.
+
+    Parameters
+    ----------
+    eloss : ndarray
+        Energy loss data in MeV/m, as a function of projectile energy.
+        This should be indexed in 1-keV steps.
+    enVsZ : ndarray
+        Projectile total kinetic energy, in MeV, as a function of position, in mm.
+        Index is in 1-mm steps from 0 to 1000 mm. The projectile should start at 1000 mm.
+    """
+
+    cdef mcopt.Gas *thisptr
+
+    def __cinit__(self, np.ndarray[np.double_t, ndim=1] eloss, np.ndarray[np.double_t, ndim=1] enVsZ):
+        cdef cppvec[double] elossVec = np2cppvec(eloss)
+        cdef cppvec[double] enVsZVec = np2cppvec(enVsZ)
+
+        self.thisptr = new mcopt.Gas(elossVec, enVsZVec)
+
+    def __dealloc__(self):
+        del self.thisptr
+
+
 cdef class Tracker:
-    """Tracker(mass_num, charge_num, eloss, efield, bfield)
+    """Tracker(mass_num, charge_num, gas, efield, bfield)
 
     A class for simulating the track of a charged particle in the AT-TPC.
 
@@ -26,9 +53,8 @@ cdef class Tracker:
     ----------
     massNum, chargeNum : int
         The mass and charge numbers of the projectile.
-    eloss : ndarray
-        The energy loss for the particle, in MeV/m, as a function of projectile energy.
-        This should be indexed in 1-keV steps.
+    gas : Gas object
+        The gas data object. (Note that this is *NOT* a pytpc.Gas object.)
     efield, bfield : array-like
         The electric and magnetic fields, in SI units.
 
@@ -40,15 +66,15 @@ cdef class Tracker:
 
     cdef mcopt.Tracker *thisptr
 
-    def __cinit__(self, int massNum, int chargeNum, np.ndarray[np.double_t, ndim=1] eloss,
+    def __cinit__(self, int massNum, int chargeNum, Gas gas,
                   np.ndarray[np.double_t, ndim=1] efield, np.ndarray[np.double_t, ndim=1] bfield):
-        cdef cppvec[double] elossVec = np2cppvec(eloss)
+
         cdef arma.vec *efieldVec
         cdef arma.vec *bfieldVec
         try:
             efieldVec = arma.np2vec(efield)
             bfieldVec = arma.np2vec(bfield)
-            self.thisptr = new mcopt.Tracker(massNum, chargeNum, elossVec, deref(efieldVec), deref(bfieldVec))
+            self.thisptr = new mcopt.Tracker(massNum, chargeNum, deref(gas.thisptr), deref(efieldVec), deref(bfieldVec))
         finally:
             del efieldVec, bfieldVec
 
