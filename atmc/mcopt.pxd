@@ -60,8 +60,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         MCminimizeResult() except +
         arma.vec ctr
         arma.mat allParams
-        arma.vec minPosChis
-        arma.vec minEnChis
+        arma.mat minChis
         arma.vec goodParamIdx
 
 
@@ -69,6 +68,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         Chi2Set() except+
         double posChi2
         double enChi2
+        double vertChi2
 
 
     cdef cppclass MCminimizer:

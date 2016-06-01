@@ -469,10 +469,9 @@ cdef class Minimizer:
         -------
         ctr : ndarray
             The fitted track parameters.
-        minPosChis : ndarray
-            The minimum position chi^2 value at the end of each iteration.
-        minEnChis : ndarray
-            The minimum energy chi^2 value at the end of each iteration.
+        minChis : ndarray
+            The minimum chi^2 values at the end of each iteration. Each column corresponds to one chi^2 variable. Columns are
+            (position chi2, hit pattern chi2, vertex position chi2).
         allParams : ndarray
             The parameters from all generated tracks. There will be `numIters * numPts` rows.
         goodParamIdx : ndarray
@@ -503,8 +502,7 @@ cdef class Minimizer:
         cdef np.ndarray[np.double_t, ndim=1] ctr = arma.vec2np(minres.ctr)
 
         cdef np.ndarray[np.double_t, ndim=2] allParams
-        cdef np.ndarray[np.double_t, ndim=1] minPosChis
-        cdef np.ndarray[np.double_t, ndim=1] minEnChis
+        cdef np.ndarray[np.double_t, ndim=2] minChis
         cdef np.ndarray[np.double_t, ndim=1] goodParamIdx
 
         cdef double lastPosChi
@@ -512,15 +510,15 @@ cdef class Minimizer:
 
         if details:
             allParams = arma.mat2np(minres.allParams)
-            minPosChis = arma.vec2np(minres.minPosChis)
-            minEnChis = arma.vec2np(minres.minEnChis)
+            minChis = arma.mat2np(minres.minChis)
             goodParamIdx = arma.vec2np(minres.goodParamIdx)
-            return ctr, minPosChis, minEnChis, allParams, goodParamIdx
+            return ctr, minChis, allParams, goodParamIdx
 
         else:
-            lastPosChi = minres.minPosChis(minres.minPosChis.n_elem - 1)
-            lastEnChi = minres.minEnChis(minres.minEnChis.n_elem - 1)
-            return ctr, lastPosChi, lastEnChi
+            lastPosChi = minres.minChis(minres.minChis.n_rows - 1, 0)
+            lastEnChi = minres.minChis(minres.minChis.n_rows - 1, 1)
+            lastVertChi = minres.minChis(minres.minChis.n_rows - 1, 2)
+            return ctr, lastPosChi, lastEnChi, lastVertChi
 
     def find_position_deviations(self, np.ndarray[np.double_t, ndim=2] simArr, np.ndarray[np.double_t, ndim=2] expArr):
         """Find the deviations in position between two tracks.
