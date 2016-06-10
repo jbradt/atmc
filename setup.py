@@ -18,7 +18,8 @@ ext_kwargs = dict(include_dirs=[np.get_include(), '/usr/local/include'],
                   libraries=['mcopt'],
                   library_dirs=['/usr/local/lib'],
                   language='c++',
-                  extra_compile_args=['-Wall', '-std=c++11', '-mmacosx-version-min=10.9', '-g'],)
+                  extra_compile_args=['-Wall', '-Wno-unused-function', '-std=c++11', '-mmacosx-version-min=10.9', '-g'],
+                  extra_link_args=['-mmacosx-version-min=10.9'])
 
 exts = [Extension('atmc.mcopt_wrapper', ['atmc/mcopt_wrapper.pyx'], **ext_kwargs),
         Extension('atmc.armadillo', ['atmc/armadillo.pyx'], **ext_kwargs)]
