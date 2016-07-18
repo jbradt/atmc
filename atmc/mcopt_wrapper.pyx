@@ -515,6 +515,9 @@ cdef class Minimizer:
         cdef arma.mat *expPosArr
         cdef mcopt.MCminimizeResult minres
 
+        if len(ctr0) != len(sigma0):
+            raise ValueError("Length of ctr0 and sigma0 arrays must be equal")
+
         try:
             ctr0Arr = arma.np2vec(ctr0)
             sigma0Arr = arma.np2vec(sigma0)
