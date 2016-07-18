@@ -224,7 +224,7 @@ cdef class EventGenerator:
     cdef mcopt.EventGenerator *thisptr
 
     def __cinit__(self, PadPlane pads, np.ndarray[np.double_t, ndim=1] vd, double clock, double shape,
-                  unsigned massNum, double ioniz, double gain, double tilt,
+                  unsigned massNum, double ioniz, double gain, double tilt, double diff_sigma,
                   np.ndarray[np.double_t, ndim=1] beamCtr = np.zeros(3, dtype=np.double)):
         cdef arma.vec *vdVec
         cdef arma.vec *beamCtrVec
@@ -233,7 +233,7 @@ cdef class EventGenerator:
             vdVec = arma.np2vec(vd)
             beamCtrVec = arma.np2vec(beamCtr)
             self.thisptr = new mcopt.EventGenerator(deref(pads.thisptr), deref(vdVec), clock * 1e6, shape, massNum,
-                                                    ioniz, gain, tilt, deref(beamCtrVec))
+                                                    ioniz, gain, tilt, diff_sigma, deref(beamCtrVec))
         finally:
             del vdVec, beamCtrVec
 

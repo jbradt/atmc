@@ -42,7 +42,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
     cdef cppclass EventGenerator:
         EventGenerator(const PadPlane& pads, const arma.vec& vd, const double clock, const double shape,
                        const unsigned massNum, const double ioniz, const double gain, const double tilt,
-                       const arma.vec& beamCtr) except+
+                       const double diffSigma, const arma.vec& beamCtr) except+
 
         cppmap[pad_t, arma.vec] makeEvent(const arma.mat& pos, const arma.vec& en) except+
         arma.mat makePeaksTableFromSimulation(const arma.mat& pos, const arma.vec& en) except+
@@ -59,6 +59,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         double ioniz
         double gain
         double tilt
+        double diffSigma
         arma.vec beamCtr
 
 
