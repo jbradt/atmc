@@ -91,3 +91,34 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
                                   const double redFactor) except+
         Chi2Set runTrack(const arma.vec& params, const arma.mat& expPos, const arma.vec& expHits) except+
         arma.mat runTracks(const arma.mat& params, const arma.mat& expPos, const arma.vec& expHits) except+
+
+
+    cdef cppclass AnnealStopReason:
+        bint operator==(const AnnealStopReason&) except+
+
+
+    cdef:
+        AnnealStopReason ANNEAL_CONVERGED "mcopt::AnnealStopReason::converged"
+        AnnealStopReason ANNEAL_MAX_ITERS "mcopt::AnnealStopReason::maxIters"
+        AnnealStopReason ANNEAL_TOO_MANY_CALLS "mcopt::AnnealStopReason::tooManyCalls"
+
+
+    cdef cppclass AnnealResult:
+        AnnealResult() except+
+        arma.mat ctrs
+        arma.mat chis
+        AnnealStopReason stopReason
+        int numCalls
+
+
+    cdef cppclass Annealer:
+        Annealer(const Tracker& tracker, const EventGenerator& evtgen, const double T0, const double coolRate,
+                 const int numIters, const int maxCallsPerIter) except+
+        AnnealResult minimize(const arma.vec& ctr0, const arma.vec& sigma0, const arma.mat& expPos,
+                              const arma.vec& expHits) except+
+        arma.vec randomStep(const arma.vec& ctr, const arma.vec& sigma) except+
+        bint solutionIsBetter(const double newChi, const double oldChi, const double T) except+
+        double T0
+        double coolRate
+        int numIters
+        int maxCallsPerIter

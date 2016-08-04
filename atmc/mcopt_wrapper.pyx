@@ -700,3 +700,100 @@ cdef class Minimizer:
             del paramsMat, expPosMat, expHitsVec
 
         return chiArr
+
+
+cdef class Annealer:
+    cdef mcopt.Annealer *thisptr
+
+    def __cinit__(self, Tracker tr, EventGenerator evtgen, double initial_temp, double cool_rate, int num_iters,
+                  int max_calls_per_iter):
+        self.thisptr = new mcopt.Annealer(deref(tr.thisptr), deref(evtgen.thisptr), initial_temp, cool_rate, num_iters,
+                                          max_calls_per_iter)
+
+    def __dealloc__(self):
+        del self.thisptr
+
+    def minimize(self, np.ndarray[np.double_t, ndim=1] ctr0, np.ndarray[np.double_t, ndim=1] sigma0,
+                 np.ndarray[np.double_t, ndim=2] expPos, np.ndarray[np.double_t, ndim=1] expHits):
+        cdef arma.vec *ctr0Arr
+        cdef arma.vec *sigma0Arr
+        cdef arma.vec *expHitsArr
+        cdef arma.mat *expPosArr
+        cdef mcopt.AnnealResult minres
+
+        if len(ctr0) != len(sigma0):
+            raise ValueError("Length of ctr0 and sigma0 arrays must be equal")
+
+        try:
+            ctr0Arr = arma.np2vec(ctr0)
+            sigma0Arr = arma.np2vec(sigma0)
+            expPosArr = arma.np2mat(expPos)
+            expHitsArr = arma.np2vec(expHits)
+            minres = self.thisptr.minimize(deref(ctr0Arr), deref(sigma0Arr), deref(expPosArr), deref(expHitsArr))
+        finally:
+            del ctr0Arr, sigma0Arr, expPosArr, expHitsArr
+
+        cdef np.ndarray[np.double_t, ndim=2] ctrs = arma.mat2np(minres.ctrs)
+        cdef np.ndarray[np.double_t, ndim=2] chis = arma.mat2np(minres.chis)
+
+        if minres.stopReason == mcopt.ANNEAL_CONVERGED:
+            stop_reason = 'Converged'
+        elif minres.stopReason == mcopt.ANNEAL_MAX_ITERS:
+            stop_reason = 'Finished requested number of iterations'
+        elif minres.stopReason == mcopt.ANNEAL_TOO_MANY_CALLS:
+            stop_reason = 'Exceeded max number of calls per iteration'
+        else:
+            stop_reason = 'Unknown stop reason'
+
+        return {'ctrs': ctrs,
+                'chis': chis,
+                'stop_reason': stop_reason,
+                'num_calls': minres.numCalls}
+
+    def random_step(self, np.ndarray[np.double_t, ndim=1] ctr, np.ndarray[np.double_t, ndim=1] sigma):
+        cdef arma.vec *ctrArr
+        cdef arma.vec *sigmaArr
+        cdef arma.vec newCtr
+
+        try:
+            ctrArr = arma.np2vec(ctr)
+            sigmaArr = arma.np2vec(sigma)
+
+            newCtr = self.thisptr.randomStep(deref(ctrArr), deref(sigmaArr))
+
+        finally:
+            del ctrArr, sigmaArr
+
+        cdef np.ndarray[np.double_t, ndim=1] result = arma.vec2np(newCtr)
+        return result
+
+    def solution_is_better(self, double newChi, double oldChi, double temp):
+        return self.thisptr.solutionIsBetter(newChi, oldChi, temp)
+
+    property initial_temp:
+        def __get__(self):
+            return self.thisptr.T0
+
+        def __set__(self, newval):
+            self.thisptr.T0 = newval
+
+    property cool_rate:
+        def __get__(self):
+            return self.thisptr.coolRate
+
+        def __set__(self, newval):
+            self.thisptr.coolRate = newval
+
+    property num_iters:
+        def __get__(self):
+            return self.thisptr.numIters
+
+        def __set__(self, newval):
+            self.thisptr.numIters = newval
+
+    property max_calls_per_iter:
+        def __get__(self):
+            return self.thisptr.maxCallsPerIter
+
+        def __set__(self, newval):
+            self.thisptr.maxCallsPerIter = newval

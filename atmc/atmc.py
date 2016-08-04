@@ -1,8 +1,8 @@
 import numpy as np
 import atmc.mcopt_wrapper as mcopt
-from atmc.mcopt_wrapper import PadPlane, EventGenerator, Minimizer
+from atmc.mcopt_wrapper import PadPlane, EventGenerator, Minimizer, Annealer
 
-__all__ = ['Tracker', 'Minimizer', 'PadPlane', 'EventGenerator']
+__all__ = ['Tracker', 'Minimizer', 'PadPlane', 'EventGenerator', 'Annealer']
 
 
 def find_vertex_energy(beam_intercept, beam_enu0, beam_mass, beam_chg, gas):
