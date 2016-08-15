@@ -83,27 +83,27 @@ cdef class Tracker:
     def __dealloc__(self):
         del self.thisptr
 
-    property mass_num:
+    @property
+    def mass_num(self):
         """The mass number of the tracked particle."""
-        def __get__(self):
-            return self.thisptr.getMassNum()
+        return self.thisptr.getMassNum()
 
-    property charge_num:
+    @property
+    def charge_num(self):
         """The charge number of the tracked particle."""
-        def __get__(self):
-            return self.thisptr.getChargeNum()
+        return self.thisptr.getChargeNum()
 
-    property efield:
+    @property
+    def efield(self):
         """The electric field in the detector, in V/m."""
-        def __get__(self):
-            cdef arma.vec efieldVec = self.thisptr.getEfield()
-            return arma.vec2np(efieldVec)
+        cdef arma.vec efieldVec = self.thisptr.getEfield()
+        return arma.vec2np(efieldVec)
 
-    property bfield:
+    @property
+    def bfield(self):
         """The magnetic field in the detector, in Tesla."""
-        def __get__(self):
-            cdef arma.vec bfieldVec = self.thisptr.getBfield()
-            return arma.vec2np(bfieldVec)
+        cdef arma.vec bfieldVec = self.thisptr.getBfield()
+        return arma.vec2np(bfieldVec)
 
     def track_particle(self, double x0, double y0, double z0, double enu0, double azi0, double pol0):
         """Tracker.track_particle(x0, y0, z0, enu0, azi0, pol0)
@@ -243,80 +243,83 @@ cdef class EventGenerator:
     def __dealloc__(self):
         del self.thisptr
 
-    property mass_num:
+    @property
+    def mass_num(self):
         """The mass number of the tracked particle."""
-        def __get__(self):
-            return self.thisptr.massNum
+        return self.thisptr.massNum
+    @mass_num.setter
+    def mass_num(self, newval):
+        self.thisptr.massNum = newval
 
-        def __set__(self, newval):
-            self.thisptr.massNum = newval
-
-    property ioniz:
+    @property
+    def ioniz(self):
         """The ionization potential of the gas, in eV."""
-        def __get__(self):
-            return self.thisptr.ioniz
+        return self.thisptr.ioniz
+    @ioniz.setter
+    def ioniz(self, newval):
+        self.thisptr.ioniz = newval
 
-        def __set__(self, newval):
-            self.thisptr.ioniz = newval
-
-    property gain:
+    @property
+    def gain(self):
         """The micromegas gain."""
-        def __get__(self):
-            return self.thisptr.gain
+        return self.thisptr.gain
+    @gain.setter
+    def gain(self, newval):
+        self.thisptr.gain = newval
 
-        def __set__(self, newval):
-            self.thisptr.gain = newval
-
-    property tilt:
+    @property
+    def tilt(self):
         """The detector tilt angle, in radians."""
-        def __get__(self):
-            return self.thisptr.tilt
+        return self.thisptr.tilt
+    @tilt.setter
+    def tilt(self, newval):
+        self.thisptr.tilt = newval
 
-        def __set__(self, newval):
-            self.thisptr.tilt = newval
-
-    property clock:
+    @property
+    def clock(self):
         """The CoBo write clock frequency, in MHz."""
-        def __get__(self):
-            return self.thisptr.getClock() * 1e-6
+        return self.thisptr.getClock() * 1e-6
+    @clock.setter
+    def clock(self, double newval):
+         self.thisptr.setClock(newval * 1e6)
 
-        def __set__(self, double newval):
-             self.thisptr.setClock(newval * 1e6)
-
-    property shape:
+    @property
+    def shape(self):
         """The shaping time in the electronics, in seconds."""
-        def __get__(self):
-            return self.thisptr.getShape()
+        return self.thisptr.getShape()
 
-        def __set__(self, double newval):
-            self.thisptr.setShape(newval)
+    @shape.setter
+    def shape(self, double newval):
+        self.thisptr.setShape(newval)
 
-    property vd:
+    @property
+    def vd(self):
         """The 3D drift velocity vector, in cm/µs."""
-        def __get__(self):
-            return arma.vec2np(self.thisptr.vd)
+        return arma.vec2np(self.thisptr.vd)
 
-        def __set__(self, newval):
-            cdef arma.vec *vdVec
-            try:
-                vdVec = arma.np2vec(newval)
-                self.thisptr.vd = deref(vdVec)
-            finally:
-                del vdVec
+    @vd.setter
+    def vd(self, newval):
+        cdef arma.vec *vdVec
+        try:
+            vdVec = arma.np2vec(newval)
+            self.thisptr.vd = deref(vdVec)
+        finally:
+            del vdVec
 
-    property beam_ctr:
+    @property
+    def beam_ctr(self):
         """A vector used to re-center the beam in the chamber after the calibration and un-tilting
         transformations. It should have units of meters."""
-        def __get__(self):
-            return arma.vec2np(self.thisptr.beamCtr)
+        return arma.vec2np(self.thisptr.beamCtr)
 
-        def __set__(self, newval):
-            cdef arma.vec *beamCtrVec
-            try:
-                beamCtrVec = arma.np2vec(newval)
-                self.thisptr.beamCtr = deref(beamCtrVec)
-            finally:
-                del beamCtrVec
+    @beam_ctr.setter
+    def beam_ctr(self, newval):
+        cdef arma.vec *beamCtrVec
+        try:
+            beamCtrVec = arma.np2vec(newval)
+            self.thisptr.beamCtr = deref(beamCtrVec)
+        finally:
+            del beamCtrVec
 
     def make_event(self, np.ndarray[np.double_t, ndim=2] pos, np.ndarray[np.double_t, ndim=1] en):
         """Make the electronics signals from the given track matrix.
@@ -668,26 +671,29 @@ cdef class Minimizer:
 
         return chiArr
 
-    property posChi2Enabled:
-        def __get__(self):
-            return self.thisptr.posChi2Enabled
+    @property
+    def posChi2Enabled(self):
+        return self.thisptr.posChi2Enabled
 
-        def __set__(self, newval):
-            self.thisptr.posChi2Enabled = newval
+    @posChi2Enabled.setter
+    def posChi2Enabled(self, newval):
+        self.thisptr.posChi2Enabled = newval
 
-    property enChi2Enabled:
-        def __get__(self):
-            return self.thisptr.enChi2Enabled
+    @property
+    def enChi2Enabled(self):
+        return self.thisptr.enChi2Enabled
 
-        def __set__(self, newval):
-            self.thisptr.enChi2Enabled = newval
+    @enChi2Enabled.setter
+    def enChi2Enabled(self, newval):
+        self.thisptr.enChi2Enabled = newval
 
-    property vertChi2Enabled:
-        def __get__(self):
-            return self.thisptr.vertChi2Enabled
+    @property
+    def vertChi2Enabled(self):
+        return self.thisptr.vertChi2Enabled
 
-        def __set__(self, newval):
-            self.thisptr.vertChi2Enabled = newval
+    @vertChi2Enabled.setter
+    def vertChi2Enabled(self, newval):
+        self.thisptr.vertChi2Enabled = newval
 
 
 
@@ -760,58 +766,66 @@ cdef class Annealer:
         cdef np.ndarray[np.double_t, ndim=1] result = arma.vec2np(newCtr)
         return result
 
-    property initial_temp:
-        def __get__(self):
-            return self.thisptr.T0
+    @property
+    def initial_temp(self):
+        return self.thisptr.T0
 
-        def __set__(self, newval):
-            self.thisptr.T0 = newval
+    @initial_temp.setter
+    def initial_temp(self, newval):
+        self.thisptr.T0 = newval
 
-    property cool_rate:
-        def __get__(self):
-            return self.thisptr.coolRate
+    @property
+    def cool_rate(self):
+        return self.thisptr.coolRate
 
-        def __set__(self, newval):
-            self.thisptr.coolRate = newval
+    @cool_rate.setter
+    def cool_rate(self, newval):
+        self.thisptr.coolRate = newval
 
-    property num_iters:
-        def __get__(self):
-            return self.thisptr.numIters
+    @property
+    def num_iters(self):
+        return self.thisptr.numIters
 
-        def __set__(self, newval):
-            self.thisptr.numIters = newval
+    @num_iters.setter
+    def num_iters(self, newval):
+        self.thisptr.numIters = newval
 
-    property max_calls_per_iter:
-        def __get__(self):
-            return self.thisptr.maxCallsPerIter
+    @property
+    def max_calls_per_iter(self):
+        return self.thisptr.maxCallsPerIter
 
-        def __set__(self, newval):
-            self.thisptr.maxCallsPerIter = newval
+    @max_calls_per_iter.setter
+    def max_calls_per_iter(self, newval):
+        self.thisptr.maxCallsPerIter = newval
 
-    property multi_minimize_num_trials:
-        def __get__(self):
-            return self.thisptr.multiMinimizeNumTrials
+    @property
+    def multi_minimize_num_trials(self):
+        return self.thisptr.multiMinimizeNumTrials
 
-        def __set__(self, newval):
-            self.thisptr.multiMinimizeNumTrials = newval
+    @multi_minimize_num_trials.setter
+    def multi_minimize_num_trials(self, newval):
+        self.thisptr.multiMinimizeNumTrials = newval
 
-    property posChi2Enabled:
-        def __get__(self):
-            return self.thisptr.posChi2Enabled
+    @property
+    def posChi2Enabled(self):
+        return self.thisptr.posChi2Enabled
 
-        def __set__(self, newval):
-            self.thisptr.posChi2Enabled = newval
+    @posChi2Enabled.setter
+    def posChi2Enabled(self, newval):
+        self.thisptr.posChi2Enabled = newval
 
-    property enChi2Enabled:
-        def __get__(self):
-            return self.thisptr.enChi2Enabled
+    @property
+    def enChi2Enabled(self):
+        return self.thisptr.enChi2Enabled
 
-        def __set__(self, newval):
-            self.thisptr.enChi2Enabled = newval
+    @enChi2Enabled.setter
+    def enChi2Enabled(self, newval):
+        self.thisptr.enChi2Enabled = newval
 
-    property vertChi2Enabled:
-        def __get__(self):
-            return self.thisptr.vertChi2Enabled
+    @property
+    def vertChi2Enabled(self):
+        return self.thisptr.vertChi2Enabled
 
-        def __set__(self, newval):
-            self.thisptr.vertChi2Enabled = newval
+    @vertChi2Enabled.setter
+    def vertChi2Enabled(self, newval):
+        self.thisptr.vertChi2Enabled = newval
