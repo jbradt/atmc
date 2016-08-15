@@ -21,7 +21,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
 
 
     cdef cppclass Tracker:
-        Tracker(unsigned massNum, unsigned chargeNum, Gas gas,
+        Tracker(unsigned massNum, unsigned chargeNum, const Gas* gas,
                 arma.vec& efield, arma.vec& bfield) except+
         Track trackParticle(const double x0, const double y0, const double z0,
                             const double enu0,  const double azi0, const double pol0) except+
@@ -40,7 +40,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
 
 
     cdef cppclass EventGenerator:
-        EventGenerator(const PadPlane& pads, const arma.vec& vd, const double clock, const double shape,
+        EventGenerator(const PadPlane* pads, const arma.vec& vd, const double clock, const double shape,
                        const unsigned massNum, const double ioniz, const double gain, const double tilt,
                        const double diffSigma, const arma.vec& beamCtr) except+
 
@@ -79,7 +79,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
 
 
     cdef cppclass MCminimizer:
-        MCminimizer(const Tracker& tracker, const EventGenerator& evtgen) except+
+        MCminimizer(const Tracker* tracker, const EventGenerator* evtgen) except+
 
         arma.mat makeParams(const arma.vec& ctr, const arma.vec& sigma, const unsigned numSets,
                             const arma.vec& mins, const arma.vec& maxes) except+
@@ -119,7 +119,7 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
 
 
     cdef cppclass Annealer:
-        Annealer(const Tracker& tracker, const EventGenerator& evtgen, const double T0, const double coolRate,
+        Annealer(const Tracker* tracker, const EventGenerator* evtgen, const double T0, const double coolRate,
                  const int numIters, const int maxCallsPerIter) except+
         AnnealResult minimize(const arma.vec& ctr0, const arma.vec& sigma0, const arma.mat& expPos,
                               const arma.vec& expHits) except+

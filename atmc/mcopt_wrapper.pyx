@@ -65,16 +65,18 @@ cdef class Tracker:
     """
 
     cdef mcopt.Tracker *thisptr
+    cdef Gas pyGas
 
     def __cinit__(self, int massNum, int chargeNum, Gas gas,
                   np.ndarray[np.double_t, ndim=1] efield, np.ndarray[np.double_t, ndim=1] bfield):
+        self.pyGas = gas
 
         cdef arma.vec *efieldVec
         cdef arma.vec *bfieldVec
         try:
             efieldVec = arma.np2vec(efield)
             bfieldVec = arma.np2vec(bfield)
-            self.thisptr = new mcopt.Tracker(massNum, chargeNum, deref(gas.thisptr), deref(efieldVec), deref(bfieldVec))
+            self.thisptr = new mcopt.Tracker(massNum, chargeNum, self.pyGas.thisptr, deref(efieldVec), deref(bfieldVec))
         finally:
             del efieldVec, bfieldVec
 
@@ -222,17 +224,18 @@ cdef class EventGenerator:
     """
 
     cdef mcopt.EventGenerator *thisptr
+    cdef PadPlane pyPadPlane
 
     def __cinit__(self, PadPlane pads, np.ndarray[np.double_t, ndim=1] vd, double clock, double shape,
                   unsigned massNum, double ioniz, double gain, double tilt, double diff_sigma,
                   np.ndarray[np.double_t, ndim=1] beamCtr = np.zeros(3, dtype=np.double)):
+        self.pyPadPlane = pads
         cdef arma.vec *vdVec
         cdef arma.vec *beamCtrVec
-
         try:
             vdVec = arma.np2vec(vd)
             beamCtrVec = arma.np2vec(beamCtr)
-            self.thisptr = new mcopt.EventGenerator(deref(pads.thisptr), deref(vdVec), clock * 1e6, shape, massNum,
+            self.thisptr = new mcopt.EventGenerator(self.pyPadPlane.thisptr, deref(vdVec), clock * 1e6, shape, massNum,
                                                     ioniz, gain, tilt, diff_sigma, deref(beamCtrVec))
         finally:
             del vdVec, beamCtrVec
@@ -460,9 +463,13 @@ cdef class Minimizer:
         The event generator to use to do the projection onto the pad plane.
     """
     cdef mcopt.MCminimizer *thisptr
+    cdef Tracker pyTracker
+    cdef EventGenerator pyEvtGen
 
     def __cinit__(self, Tracker tr, EventGenerator evtgen):
-        self.thisptr = new mcopt.MCminimizer(deref(tr.thisptr), deref(evtgen.thisptr))
+        self.pyTracker = tr
+        self.pyEvtGen = evtgen
+        self.thisptr = new mcopt.MCminimizer(self.pyTracker.thisptr, self.pyEvtGen.thisptr)
 
     def __dealloc__(self):
         del self.thisptr
@@ -686,10 +693,14 @@ cdef class Minimizer:
 
 cdef class Annealer:
     cdef mcopt.Annealer *thisptr
+    cdef Tracker pyTracker
+    cdef EventGenerator pyEvtGen
 
     def __cinit__(self, Tracker tr, EventGenerator evtgen, double initial_temp, double cool_rate, int num_iters,
                   int max_calls_per_iter):
-        self.thisptr = new mcopt.Annealer(deref(tr.thisptr), deref(evtgen.thisptr), initial_temp, cool_rate, num_iters,
+        self.pyTracker = tr
+        self.pyEvtGen = evtgen
+        self.thisptr = new mcopt.Annealer(self.pyTracker.thisptr, self.pyEvtGen.thisptr, initial_temp, cool_rate, num_iters,
                                           max_calls_per_iter)
 
     def __dealloc__(self):
