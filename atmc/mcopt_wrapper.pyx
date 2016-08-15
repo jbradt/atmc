@@ -100,7 +100,10 @@ cdef class Tracker:
         return arma.vec2np(efieldVec)
 
     @efield.setter
-    def efield(self, value):
+    def efield(self, np.ndarray[np.double_t, ndim=1] value):
+        if len(value) != 3:
+            raise ValueError('E field vector must have dimension 3')
+
         cdef arma.vec *efieldVec
         try:
             efieldVec = arma.np2vec(value)
@@ -115,7 +118,10 @@ cdef class Tracker:
         return arma.vec2np(bfieldVec)
 
     @bfield.setter
-    def bfield(self, value):
+    def bfield(self, np.ndarray[np.double_t, ndim=1] value):
+        if len(value) != 3:
+            raise ValueError('B field vector must have dimension 3')
+
         cdef arma.vec *bfieldVec
         try:
             bfieldVec = arma.np2vec(value)
