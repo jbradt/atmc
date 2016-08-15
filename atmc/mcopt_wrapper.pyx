@@ -99,11 +99,29 @@ cdef class Tracker:
         cdef arma.vec efieldVec = self.thisptr.getEfield()
         return arma.vec2np(efieldVec)
 
+    @efield.setter
+    def efield(self, value):
+        cdef arma.vec *efieldVec
+        try:
+            efieldVec = arma.np2vec(value)
+            self.thisptr.setEfield(deref(efieldVec))
+        finally:
+            del efieldVec
+
     @property
     def bfield(self):
         """The magnetic field in the detector, in Tesla."""
         cdef arma.vec bfieldVec = self.thisptr.getBfield()
         return arma.vec2np(bfieldVec)
+
+    @bfield.setter
+    def bfield(self, value):
+        cdef arma.vec *bfieldVec
+        try:
+            bfieldVec = arma.np2vec(value)
+            self.thisptr.setBfield(deref(bfieldVec))
+        finally:
+            del bfieldVec
 
     def track_particle(self, double x0, double y0, double z0, double enu0, double azi0, double pol0):
         """Tracker.track_particle(x0, y0, z0, enu0, azi0, pol0)

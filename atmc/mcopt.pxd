@@ -28,7 +28,9 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         unsigned int getMassNum()
         unsigned int getChargeNum()
         arma.vec getEfield()
+        void setEfield(const arma.vec& ef)
         arma.vec getBfield()
+        void setBfield(const arma.vec& bf)
 
 
     cdef cppclass PadPlane:
