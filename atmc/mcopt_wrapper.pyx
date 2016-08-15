@@ -580,46 +580,6 @@ cdef class Minimizer:
 
         return devArr
 
-    def find_energy_deviation(self, np.ndarray[np.double_t, ndim=2] simPos, np.ndarray[np.double_t, ndim=1] simEn,
-                              np.ndarray[np.double_t, ndim=1] expMesh):
-        """Find the deviations between the simulated track's energy and the experimental data.
-
-        Parameters
-        ----------
-        sim_pos : ndarray
-            The simulated track's (x, y, z) positions. The units should be compatible with the
-            units of the pad plane object (probably meters).
-        sim_en : ndarray
-            The simulated track's energy values, in MeV/u. This should have the same number of rows
-            as sim_pos.
-        exp_mesh : ndarray
-            The simulated track's reconstructed mesh signal. This should have a length of 512 like
-            the GET electronics signals.
-
-        Returns
-        -------
-        ndarray
-            The deviation between the two signals, as seen by the minimizer.
-        """
-        cdef arma.mat *simPosMat
-        cdef arma.vec *simEnVec
-        cdef arma.vec *expMeshVec
-        cdef arma.vec enDevVec
-        cdef np.ndarray[np.double_t, ndim=1] enDev
-
-        try:
-            simPosMat = arma.np2mat(simPos)
-            simEnVec = arma.np2vec(simEn)
-            expMeshVec = arma.np2vec(expMesh)
-
-            enDevVec = self.thisptr.findEnergyDeviation(deref(simPosMat), deref(simEnVec), deref(expMeshVec))
-            enDev = arma.vec2np(enDevVec)
-
-        finally:
-            del simPosMat, simEnVec, expMeshVec
-
-        return enDev
-
     def find_hit_pattern_deviation(self, np.ndarray[np.double_t, ndim=2] simPos, np.ndarray[np.double_t, ndim=1] simEn,
                                    np.ndarray[np.double_t, ndim=1] expHits):
         """Find the deviations between the simulated track's hit pattern and the experimental hit pattern.
@@ -701,6 +661,28 @@ cdef class Minimizer:
 
         return chiArr
 
+    property posChi2Enabled:
+        def __get__(self):
+            return self.thisptr.posChi2Enabled
+
+        def __set__(self, newval):
+            self.thisptr.posChi2Enabled = newval
+
+    property enChi2Enabled:
+        def __get__(self):
+            return self.thisptr.enChi2Enabled
+
+        def __set__(self, newval):
+            self.thisptr.enChi2Enabled = newval
+
+    property vertChi2Enabled:
+        def __get__(self):
+            return self.thisptr.vertChi2Enabled
+
+        def __set__(self, newval):
+            self.thisptr.vertChi2Enabled = newval
+
+
 
 cdef class Annealer:
     cdef mcopt.Annealer *thisptr
@@ -767,9 +749,6 @@ cdef class Annealer:
         cdef np.ndarray[np.double_t, ndim=1] result = arma.vec2np(newCtr)
         return result
 
-    def solution_is_better(self, double newChi, double oldChi, double temp):
-        return self.thisptr.solutionIsBetter(newChi, oldChi, temp)
-
     property initial_temp:
         def __get__(self):
             return self.thisptr.T0
@@ -797,3 +776,31 @@ cdef class Annealer:
 
         def __set__(self, newval):
             self.thisptr.maxCallsPerIter = newval
+
+    property multi_minimize_num_trials:
+        def __get__(self):
+            return self.thisptr.multiMinimizeNumTrials
+
+        def __set__(self, newval):
+            self.thisptr.multiMinimizeNumTrials = newval
+
+    property posChi2Enabled:
+        def __get__(self):
+            return self.thisptr.posChi2Enabled
+
+        def __set__(self, newval):
+            self.thisptr.posChi2Enabled = newval
+
+    property enChi2Enabled:
+        def __get__(self):
+            return self.thisptr.enChi2Enabled
+
+        def __set__(self, newval):
+            self.thisptr.enChi2Enabled = newval
+
+    property vertChi2Enabled:
+        def __get__(self):
+            return self.thisptr.vertChi2Enabled
+
+        def __set__(self, newval):
+            self.thisptr.vertChi2Enabled = newval

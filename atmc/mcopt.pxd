@@ -84,13 +84,20 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         arma.mat makeParams(const arma.vec& ctr, const arma.vec& sigma, const unsigned numSets,
                             const arma.vec& mins, const arma.vec& maxes) except+
         arma.mat findPositionDeviations(const arma.mat& simPos, const arma.mat& expPos) except+
-        arma.vec findEnergyDeviation(const arma.mat& simPos, const arma.vec& simEn, const arma.vec& expMesh) except+
         arma.vec findHitPatternDeviation(const arma.mat& simPos, const arma.vec& simEn, const arma.vec& expHits) except+
         MCminimizeResult minimize(const arma.vec& ctr0, const arma.vec& sigma0, const arma.mat& expPos,
                                   const arma.vec& expMesh, const unsigned numIters, const unsigned numPts,
                                   const double redFactor) except+
         Chi2Set runTrack(const arma.vec& params, const arma.mat& expPos, const arma.vec& expHits) except+
         arma.mat runTracks(const arma.mat& params, const arma.mat& expPos, const arma.vec& expHits) except+
+
+        bint posChi2Enabled
+        bint enChi2Enabled
+        bint vertChi2Enabled
+
+        double posChi2Norm
+        double enChi2NormFraction
+        double vertChi2Norm
 
 
     cdef cppclass AnnealStopReason:
@@ -117,8 +124,16 @@ cdef extern from "mcopt/mcopt.h" namespace "mcopt":
         AnnealResult minimize(const arma.vec& ctr0, const arma.vec& sigma0, const arma.mat& expPos,
                               const arma.vec& expHits) except+
         arma.vec randomStep(const arma.vec& ctr, const arma.vec& sigma) except+
-        bint solutionIsBetter(const double newChi, const double oldChi, const double T) except+
         double T0
         double coolRate
         int numIters
         int maxCallsPerIter
+        size_t multiMinimizeNumTrials
+
+        bint posChi2Enabled
+        bint enChi2Enabled
+        bint vertChi2Enabled
+
+        double posChi2Norm
+        double enChi2NormFraction
+        double vertChi2Norm
