@@ -272,7 +272,7 @@ cdef class EventGenerator:
         """The mass number of the tracked particle."""
         return self.thisptr.massNum
     @mass_num.setter
-    def mass_num(self, newval):
+    def mass_num(self, int newval):
         self.thisptr.massNum = newval
 
     @property
@@ -280,7 +280,7 @@ cdef class EventGenerator:
         """The ionization potential of the gas, in eV."""
         return self.thisptr.ioniz
     @ioniz.setter
-    def ioniz(self, newval):
+    def ioniz(self, double newval):
         self.thisptr.ioniz = newval
 
     @property
@@ -288,7 +288,7 @@ cdef class EventGenerator:
         """The micromegas gain."""
         return self.thisptr.gain
     @gain.setter
-    def gain(self, newval):
+    def gain(self, double newval):
         self.thisptr.gain = newval
 
     @property
@@ -296,7 +296,7 @@ cdef class EventGenerator:
         """The detector tilt angle, in radians."""
         return self.thisptr.tilt
     @tilt.setter
-    def tilt(self, newval):
+    def tilt(self, double newval):
         self.thisptr.tilt = newval
 
     @property
@@ -322,7 +322,10 @@ cdef class EventGenerator:
         return arma.vec2np(self.thisptr.vd)
 
     @vd.setter
-    def vd(self, newval):
+    def vd(self, np.ndarray[np.double_t, ndim=1] newval):
+        if len(newval) != 3:
+            raise ValueError('Dimension of vd must be 3.')
+
         cdef arma.vec *vdVec
         try:
             vdVec = arma.np2vec(newval)
@@ -337,7 +340,10 @@ cdef class EventGenerator:
         return arma.vec2np(self.thisptr.beamCtr)
 
     @beam_ctr.setter
-    def beam_ctr(self, newval):
+    def beam_ctr(self, np.ndarray[np.double_t, ndim=1] newval):
+        if len(newval) != 3:
+            raise ValueError('Dimension of beam_ctr must be 3.')
+
         cdef arma.vec *beamCtrVec
         try:
             beamCtrVec = arma.np2vec(newval)
