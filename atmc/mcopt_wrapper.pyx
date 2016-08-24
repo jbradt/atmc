@@ -251,18 +251,15 @@ cdef class EventGenerator:
     cdef PadPlane pyPadPlane
 
     def __cinit__(self, PadPlane pads, np.ndarray[np.double_t, ndim=1] vd, double clock, double shape,
-                  unsigned massNum, double ioniz, double gain, double tilt, double diff_sigma,
-                  np.ndarray[np.double_t, ndim=1] beamCtr = np.zeros(3, dtype=np.double)):
+                  unsigned massNum, double ioniz, double gain, double tilt, double diff_sigma):
         self.pyPadPlane = pads
         cdef arma.vec *vdVec
-        cdef arma.vec *beamCtrVec
         try:
             vdVec = arma.np2vec(vd)
-            beamCtrVec = arma.np2vec(beamCtr)
             self.thisptr = new mcopt.EventGenerator(self.pyPadPlane.thisptr, deref(vdVec), clock * 1e6, shape, massNum,
-                                                    ioniz, gain, tilt, diff_sigma, deref(beamCtrVec))
+                                                    ioniz, gain, tilt, diff_sigma)
         finally:
-            del vdVec, beamCtrVec
+            del vdVec
 
     def __dealloc__(self):
         del self.thisptr
@@ -332,24 +329,6 @@ cdef class EventGenerator:
             self.thisptr.vd = deref(vdVec)
         finally:
             del vdVec
-
-    @property
-    def beam_ctr(self):
-        """A vector used to re-center the beam in the chamber after the calibration and un-tilting
-        transformations. It should have units of meters."""
-        return arma.vec2np(self.thisptr.beamCtr)
-
-    @beam_ctr.setter
-    def beam_ctr(self, np.ndarray[np.double_t, ndim=1] newval):
-        if len(newval) != 3:
-            raise ValueError('Dimension of beam_ctr must be 3.')
-
-        cdef arma.vec *beamCtrVec
-        try:
-            beamCtrVec = arma.np2vec(newval)
-            self.thisptr.beamCtr = deref(beamCtrVec)
-        finally:
-            del beamCtrVec
 
     def make_event(self, np.ndarray[np.double_t, ndim=2] pos, np.ndarray[np.double_t, ndim=1] en):
         """Make the electronics signals from the given track matrix.
