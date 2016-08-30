@@ -704,6 +704,29 @@ cdef class Minimizer:
     def vertChi2Enabled(self, newval):
         self.thisptr.vertChi2Enabled = newval
 
+    @property
+    def posChi2Norm(self):
+        return self.thisptr.posChi2Norm
+
+    @posChi2Norm.setter
+    def posChi2Norm(self, newval):
+        self.thisptr.posChi2Norm = newval
+
+    @property
+    def enChi2NormFraction(self):
+        return self.thisptr.enChi2NormFraction
+
+    @enChi2NormFraction.setter
+    def enChi2NormFraction(self, newval):
+        self.thisptr.enChi2NormFraction = newval
+
+    @property
+    def vertChi2Norm(self):
+        return self.thisptr.vertChi2Norm
+
+    @vertChi2Norm.setter
+    def vertChi2Norm(self, newval):
+        self.thisptr.vertChi2Norm = newval
 
 
 cdef class Annealer:
