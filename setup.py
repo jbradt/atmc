@@ -1,25 +1,20 @@
 from setuptools import setup, Extension
 import numpy as np
 from Cython.Build import cythonize
+from sys import platform
 
-# mcoptmodule = Extension(
-#     'atmc.mcopt_wrapper',
-#     include_dirs=[np.get_include(), '/usr/local/include', '/usr/include'],
-#     libraries=['armadillo', 'mcopt'],
-#     library_dirs=['/usr/local/lib'],
-#     sources=['atmc/mcopt_wrapper.cpp'],
-#     language='c++',
-#     extra_compile_args=['-Wall', '-std=c++11', '-mmacosx-version-min=10.9'],
-#     )
+
+extra_args = ['-Wall', '-Wno-unused-function', '-std=c++11', '-g']
+if platform == 'darwin':
+    extra_args.append('-mmacosx-version-min=10.9')
 
 include_path = [np.get_include()]
 
-ext_kwargs = dict(include_dirs=[np.get_include(), '/usr/local/include'],
+ext_kwargs = dict(include_dirs=[np.get_include()],
                   libraries=['mcopt'],
-                  library_dirs=['/usr/local/lib'],
                   language='c++',
-                  extra_compile_args=['-Wall', '-Wno-unused-function', '-std=c++11', '-mmacosx-version-min=10.9', '-g'],
-                  extra_link_args=['-mmacosx-version-min=10.9'])
+                  extra_compile_args=extra_args,
+                  extra_link_args=extra_args)
 
 exts = [Extension('atmc.mcopt_wrapper', ['atmc/mcopt_wrapper.pyx'], **ext_kwargs),
         Extension('atmc.armadillo', ['atmc/armadillo.pyx'], **ext_kwargs)]
