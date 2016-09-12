@@ -23,5 +23,6 @@ setup(name='atmc',
       version='2.1.0',
       description='Particle tracking and MC optimizer module',
       packages=['atmc'],
+      package_data={'atmc': ['*.pxd']},
       ext_modules=cythonize(exts),
       )
