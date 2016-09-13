@@ -31,9 +31,6 @@ cdef class Gas:
         Projectile total kinetic energy, in MeV, as a function of position, in mm.
         Index is in 1-mm steps from 0 to 1000 mm. The projectile should start at 1000 mm.
     """
-
-    cdef mcopt.Gas *thisptr
-
     def __cinit__(self, np.ndarray[np.double_t, ndim=1] eloss, np.ndarray[np.double_t, ndim=1] enVsZ):
         cdef cppvec[double] elossVec = np2cppvec(eloss)
         cdef cppvec[double] enVsZVec = np2cppvec(enVsZ)
@@ -63,10 +60,6 @@ cdef class Tracker:
     ValueError
         If the dimensions of an input array were invalid.
     """
-
-    cdef mcopt.Tracker *thisptr
-    cdef Gas pyGas
-
     def __cinit__(self, int massNum, int chargeNum, Gas gas,
                   np.ndarray[np.double_t, ndim=1] efield, np.ndarray[np.double_t, ndim=1] bfield):
         self.pyGas = gas
@@ -173,9 +166,6 @@ cdef class PadPlane:
     rot_angle : float, optional
         An angle, in radians, through which to rotate the pad plane.
     """
-
-    cdef mcopt.PadPlane *thisptr
-
     def __cinit__(self, np.ndarray[np.uint16_t, ndim=2] lut, double xLB, double xDelta,
                   double yLB, double yDelta, double rotAngle=0):
         cdef arma.Mat[mcopt.pad_t] *lutMat
@@ -246,10 +236,6 @@ cdef class EventGenerator:
     gain : int
         The gain to apply to the event.
     """
-
-    cdef mcopt.EventGenerator *thisptr
-    cdef PadPlane pyPadPlane
-
     def __cinit__(self, PadPlane pads, np.ndarray[np.double_t, ndim=1] vd, double clock, double shape,
                   unsigned massNum, double ioniz, double gain, double tilt, double diff_sigma):
         self.pyPadPlane = pads
@@ -474,10 +460,6 @@ cdef class Minimizer:
     evtgen : mcopt.EventGenerator
         The event generator to use to do the projection onto the pad plane.
     """
-    cdef mcopt.MCminimizer *thisptr
-    cdef Tracker pyTracker
-    cdef EventGenerator pyEvtGen
-
     def __cinit__(self, Tracker tr, EventGenerator evtgen):
         self.pyTracker = tr
         self.pyEvtGen = evtgen
@@ -730,10 +712,6 @@ cdef class Minimizer:
 
 
 cdef class Annealer:
-    cdef mcopt.Annealer *thisptr
-    cdef Tracker pyTracker
-    cdef EventGenerator pyEvtGen
-
     def __cinit__(self, Tracker tr, EventGenerator evtgen, double initial_temp, double cool_rate, int num_iters,
                   int max_calls_per_iter):
         self.pyTracker = tr
